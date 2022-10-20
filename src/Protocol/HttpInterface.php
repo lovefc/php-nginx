@@ -53,7 +53,7 @@ abstract class HttpInterface
         $this->headers = [
            'Content-Type'=>'text/html;charset=UTF-8',
            'Connection'=>'keep-alive',
-           'Content-Encoding'=>'gzip',
+           //'Content-Encoding'=>'gzip',
         ];
         $this->bodyLen = 0;
     }
@@ -76,12 +76,12 @@ abstract class HttpInterface
     // 处理
     public function _onReceive($server, $fd, $data)
     {
-		//$start_time = microtime(true);
         $this->fd = $fd;
 		$this->init();
 		$status = $this->handleData($data);
-        if($status) return true;
-        is_callable($this->onMessage) && call_user_func_array($this->onMessage, [$this, $data]);
+        if(!$status){
+            is_callable($this->onMessage) && call_user_func_array($this->onMessage, [$this, $data]);
+		}
     }
 
     // 关闭
@@ -116,12 +116,19 @@ abstract class HttpInterface
     public function send(string $data, $bodylen=0)
     {
         $response = '';
+		/*
         if (isset($this->headers['Content-Encoding'])  && $this->headers['Content-Encoding'] == 'gzip') {
             $data = \gzencode($data);
         }
-        $this->bodyLen = ($bodylen!= 0) ? $bodylen : strlen($data);
-        $response =  $this->_getHeader($this->headerCode, $this->headers);
-        $response = stripcslashes($response);
+		*/
+      
+        $len = strlen($data);
+        if ($this->bodyLen == 0) {
+            $this->bodyLen = ($bodylen!= 0) ? $bodylen : $len;
+            $response =  $this->_getHeader($this->headerCode, $this->headers);
+            $response = stripcslashes($response);
+			//echo $response.PHP_EOL;
+        }		
         $response .= $data;
         $this->server->send($this->fd, $response);
         $response = '';
@@ -184,6 +191,7 @@ abstract class HttpInterface
             $head = $head2 = '';		
             return $this->staticDir();
         }
+		return false;
     }
 
     // 获取文件后缀
@@ -199,7 +207,7 @@ abstract class HttpInterface
     {
         $handle = fopen($path, "r");
         while (!feof($handle)) {
-            yield fread($handle, 1048576);
+            yield fread($handle, 1024);//1048576
         }
         fclose($handle);
     }

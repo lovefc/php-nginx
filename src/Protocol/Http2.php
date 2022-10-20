@@ -29,7 +29,7 @@ class Http2 extends HttpInterface
         $this->headers = [
            'Content-Type'=>'text/html;charset=UTF-8',
            'Connection'=>'keep-alive',
-           'Content-Encoding'=>'gzip',
+           //'Content-Encoding'=>'gzip',
            //'Vary'=>'Accept-Encoding'
         ];
         $this->bodyLen = 0;
