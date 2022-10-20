@@ -14,6 +14,7 @@ class Http2 extends HttpInterface
         $this->server = new \FC\Worker('https://'.$text, $context_option);
         $this->server->on('connect', [$this,"_onConnect"]);
         $this->server->on('receive', [$this,"_onReceive"]);
+        //$this->server->on('decrypt', [$this,"_onDecrypt"]);		
         $this->server->on('close', [$this,"_onClose"]);
         /** 初始默认 **/
         $this->init();
@@ -22,18 +23,16 @@ class Http2 extends HttpInterface
     // 初始化参数
     public function init()
     {
-        $this->isStatic = 0;
         $this->httpCode = 200;
-        $this->protocolHeader = 'HTTP/1.1';
+        $this->protocolHeader = 'HTTP/2';
         $this->separator = '\r\n';
         $this->headers = [
            'Content-Type'=>'text/html;charset=UTF-8',
            'Connection'=>'keep-alive',
-          // 'Content-Encoding'=>'gzip',
+           'Content-Encoding'=>'gzip',
            //'Vary'=>'Accept-Encoding'
         ];
         $this->bodyLen = 0;
-        $this->bufferLen = 0;
     }	
 
     // https解密
@@ -59,22 +58,11 @@ class Http2 extends HttpInterface
         // 第二个参数是无延迟
         set_error_handler(function () {
         });
+		
         if ($client = stream_socket_accept($socket, 0)) {
             $client = $this->https($client);
-        }
+        }	
         restore_error_handler();
         return $client;
     }
-	
-    /**
-     * 首次与客户端握手
-     */
-    public function doHandshake($fd)
-    {
-        $upgrade = stripcslashes("HTTP/1.1 101 Switching Protocol\r\nUpgrade: h2c\r\nConnection: Upgrade\r\n\r\n");
-        $this->server->send($fd,  $upgrade);
-		echo $upgrade.PHP_EOL;
-        $this->isHand[(int)$fd] = true;
-    }
-	
 }

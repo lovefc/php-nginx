@@ -2,24 +2,26 @@
 /*
  * @Author       : lovefc
  * @Date         : 2022-09-03 02:11:36
- * @LastEditTime : 2022-09-03 02:11:37
+ * @LastEditTime : 2022-10-18 10:49:27
  */
- 
+
 namespace FC;
 
 class Worker
 {
     public $socket;
-	
+
     public $_readFds = [];
     public $_writeFds = [];
-    public $_exceptFds = [];	
+    public $_exceptFds = [];
 
     public $onReceive;
 
     public $onConnect;
 
     public $onClose;
+	
+	public $onDecrypt;
 
     public $socketList = [];
 
@@ -39,9 +41,10 @@ class Worker
 
     // 事件
     private $events = [
-        'connect' => 'onConnect',
-        'receive' => 'onReceive',
-        'close' => 'onClose',
+        'connect' => 'onConnect', // 开始
+        'receive' => 'onReceive', // 执行
+        'decrypt'=>'onDecrypt', //解释ssl
+        'close' => 'onClose', // 关闭
     ];
 
     // 协议
@@ -100,7 +103,7 @@ class Worker
         }
 
         stream_set_blocking($this->socket, false); //设置非阻塞
-        stream_set_timeout($this->socket,5);
+        stream_set_timeout($this->socket, 5);
         // 判断资源是否创建成功
         if (is_resource($this->socket)) {
             if (!isset($this->socketList[$this->protocol])) {
@@ -114,12 +117,12 @@ class Worker
     // 解析地址
     public function stockAddres($local_socket)
     {
-		if(substr_count($local_socket,':')==3){
+        if (substr_count($local_socket, ':')==3) {
             list($transport, $host, $port) = explode(":", $local_socket);
-		}else{
-			$port = null;
-			list($transport, $host) = explode(":", $local_socket);
-		}
+        } else {
+            $port = null;
+            list($transport, $host) = explode(":", $local_socket);
+        }
         $this->host = substr($host, 2);
         // 常见web协议
         if (array_key_exists($transport, $this->_transports)) {
@@ -152,21 +155,31 @@ class Worker
     private function accept()
     {
         while (true) {
-            $write = $except = [];
-            $read = $this->socketList[$this->protocol];
-            $write = $this->_writeFds;
-            $except = $this->_exceptFds;
-            stream_select($read, $write, $except, 0, $this->selectTimeout);
-            foreach ($read as $socket) {
-				$fd_key = (int)$socket;
-                $socket === $this->socket ? $this->createSocket() : $this->receive($socket);
-            }
-            foreach ($write as $fd) {
-               //var_dump($fd);
-            }		
-            foreach ($except as $fd) {
-              // var_dump($fd);
-            }				
+            $this->reception();
+        }
+    }
+
+    private function reception()
+    {
+        $write = $except = [];
+        $read = $this->socketList[$this->protocol];
+        $write = $this->_writeFds;
+        $except = $this->_exceptFds;
+        stream_select($read, $write, $except, 0, $this->selectTimeout);
+		
+        foreach ($read as $socket) {
+            if($socket === $this->socket) {
+				$this->createSocket();
+		    }else {		
+                $this->receive($socket);				
+			}
+        }
+
+        foreach ($write as $fd) {
+            //var_dump($fd);
+        }
+        foreach ($except as $fd) {
+            // var_dump($fd);
         }
     }
 
@@ -181,8 +194,8 @@ class Worker
             $this->socketList[$this->protocol][(int)$client] = $client;
         }
     }
-    
-	// 关闭链接
+
+    // 关闭链接
     private function closeStock($client)
     {
         unset($this->socketList[$this->protocol][(int)$client]);
@@ -193,18 +206,25 @@ class Worker
     // 接收处理
     private function receive($client)
     {
+        //$client = $this->socketList[$this->protocol][$fd_key] ?? null;
+        if (!$client) {
+            return false;
+        }
         $buffer = fread($client, 65535);
+
+        // 关闭链接
         if (empty($buffer) && (feof($client) || !is_resource($client))) {
             $this->closeStock($client);
         }
+		
         is_callable($this->onReceive) && call_user_func_array($this->onReceive, [$this->socket, $client, $buffer]);
     }
 
     // 信息发送
     public function send($client, $data)
     {
-        if(is_resource($client)){
-		    fwrite($client, $data);
+		if(is_resource($client)){
+            fwrite($client, $data);
 		}
     }
 

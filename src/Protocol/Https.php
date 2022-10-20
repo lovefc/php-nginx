@@ -45,19 +45,8 @@ class Https extends HttpInterface
         if ($client = stream_socket_accept($socket, 0)) {
             $client = $this->https($client);
         }
-		$this->doHandshake($client);
         restore_error_handler();
         return $client;
-    }
-	
-    /**
-     * 首次与客户端握手
-     */
-    public function doHandshake($fd)
-    {
-        $upgrade = stripcslashes("HTTP/1.1 101 Switching Protocol\r\nUpgrade: h2c\r\nConnection: Upgrade\r\n\r\n");
-        $this->server->send($fd,  $upgrade);
-        $this->isHand[(int)$fd] = true;
     }
 	
 }

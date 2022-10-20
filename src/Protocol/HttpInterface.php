@@ -29,10 +29,6 @@ abstract class HttpInterface
 
     public $getHeaders;
 
-    public $isStatic = 0;
-
-    public $bufferLen;
-
     public $types;
 
     public $cacheTime = 10;
@@ -51,7 +47,6 @@ abstract class HttpInterface
     // 初始化参数
     public function init()
     {
-        $this->isStatic = 0;
         $this->httpCode = 200;
         $this->protocolHeader = 'HTTP/1.1';
         $this->separator = '\r\n';
@@ -59,10 +54,8 @@ abstract class HttpInterface
            'Content-Type'=>'text/html;charset=UTF-8',
            'Connection'=>'keep-alive',
            'Content-Encoding'=>'gzip',
-           //'Vary'=>'Accept-Encoding'
         ];
         $this->bodyLen = 0;
-        $this->bufferLen = 0;
     }
 
     // 启动
@@ -83,18 +76,12 @@ abstract class HttpInterface
     // 处理
     public function _onReceive($server, $fd, $data)
     {
-		$start_time = microtime(true);
+		//$start_time = microtime(true);
         $this->fd = $fd;
-		print_r($this->isHand);
-		$fd2 = (int)$fd;
-        $this->handleData($data);
-		if(method_exists($this,'doHandshake') && !isset($this->isHand[$fd2])){
-			//if(isset($this->isHand[$fd2]) && $this->isHand[$fd2]===false){
-			    $this->doHandshake($fd);
-			//}
-		}		
-        ($this->isStatic == 0) && is_callable($this->onMessage) && call_user_func_array($this->onMessage, [$this, $data]);
-		//$this->runtime($start_time);
+		$this->init();
+		$status = $this->handleData($data);
+        if($status) return true;
+        is_callable($this->onMessage) && call_user_func_array($this->onMessage, [$this, $data]);
     }
 
     // 关闭
@@ -132,17 +119,12 @@ abstract class HttpInterface
         if (isset($this->headers['Content-Encoding'])  && $this->headers['Content-Encoding'] == 'gzip') {
             $data = \gzencode($data);
         }
-        $len = strlen($data);
-        if ($this->bodyLen == 0) {
-            $this->bodyLen = ($bodylen!= 0) ? $bodylen : $len;
-            $response =  $this->_getHeader($this->headerCode, $this->headers);
-            $response = stripcslashes($response);
-        }
-        $this->bufferLen += $len;
+        $this->bodyLen = ($bodylen!= 0) ? $bodylen : strlen($data);
+        $response =  $this->_getHeader($this->headerCode, $this->headers);
+        $response = stripcslashes($response);
         $response .= $data;
-        //echo $response.PHP_EOL;
         $this->server->send($this->fd, $response);
-        unset($response);
+        $response = '';
     }
 
     // 发送状态码
@@ -180,7 +162,8 @@ abstract class HttpInterface
     public function handleData($data)
     {
         //有文件头，来处理head头
-        if (stripos($data, $this->protocolHeader)) {
+		//$this->protocolHeader
+        if (stripos($data, 'HTTP/1.1')) {
             //echo $data.PHP_EOL;
             $data2 = explode("\r\n\r\n", $data)[0];
             $header = explode("\r\n", $data2);
@@ -198,35 +181,10 @@ abstract class HttpInterface
             $_SERVER['HEADERS'] = $head;
             $_SERVER['METHOD'] = $method;
             $_SERVER['QUERY'] = $query;
-            //print_r($_SERVER);
-            $this->init();
-            $this->staticDir();
-            unset($head);
-            unset($head2);
+            $head = $head2 = '';		
+            return $this->staticDir();
         }
     }
-    /*
-    httpCache() {
-        let req = this.request;
-        if (req.headers['if-modified-since']) {
-            let oDate = new Date(req.headers['if-modified-since']);
-            let time_client = Math.floor(oDate.getTime() / 1000);
-            let time_server = Math.floor(new Date().getTime() / 1000);
-            if (time_server > time_client) {
-                return false;
-            } else {
-                return true;
-            }
-        }
-    }
-
-    httpCacheMsg() {
-        let res = this.response;
-        res.writeHeader(304);
-        res.write('Not Modified');
-        res.end();
-    }
-    */
 
     // 获取文件后缀
     public function getExt($filename)
@@ -254,13 +212,12 @@ abstract class HttpInterface
         $file = $_SERVER['DOCUMENT_ROOT'].$_SERVER['QUERY'];
         $arr = parse_url($file);
         $file =  $arr['path'] ?? '';
-
         if (isset($this->files[$file]) || is_file($file)) {
             if (empty($this->types)) {
                 $this->types = include(__DIR__.'/Type.php');			
             }
             $type = $this->types;
-            $this->isStatic = 1;
+            //$this->isStatic = 1;
             $ext = $this->getExt($file);
             $connect_type = $type[$ext] ?? null;
             if ($connect_type) {
@@ -293,51 +250,25 @@ abstract class HttpInterface
                     $lastTime = date('r');
                     //'Content-Encoding'=>'gzip'
                     $this->setHeader(200, ['Content-type'=>$connect_type,'Last-Modified'=>$lastTime,'Etag'=>md5($fileTime.$file), 'data'=>$lastTime, 'Cache-Control'=>'max-age='.$this->cacheTime]);
-                    //$data = file_get_contents($file);
-					
 					if(isset($this->files[$file])){
                         $filesize = $this->files[$file];
                     }else{
 						$filesize = filesize($file);
 					}
-                   
 					// 常规的循环读取
-
                     foreach ($this->readTheFile($file) as $data) {
                         $this->send($data, $filesize);
                     }
                     
-					
-					/*
-					// readfile读取
-                    $start_time = microtime(true);
-					ob_start();
-                    readfile($file);
-                    $this->send(ob_get_contents());
-                    ob_end_clean();
-					$this->runtime($start_time);
-					*/
-                    /*
-					// file_get_contents读取
-                    $start_time = microtime(true);
-                    $this->send(file_get_contents($file));
-					$this->runtime($start_time);
-                     */
-                    /*
-                    $handle = fopen($file, "r");
-                    while (!feof($handle)) {
-                       $this->send(fgets($handle, $filesize/10),$filesize);
-                    }
-                    fclose($handle);
-                    */
-                    
                 }
-                unset($type);
+                $type = null;
 				// 如果大于1000的文件，就重新搞
 				if(count($this->files)>1000){
 					$this->files = [];
 				}
+				return true;
             }
+			return false;
         }
         return false;
     }
