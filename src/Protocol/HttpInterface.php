@@ -53,7 +53,7 @@ abstract class HttpInterface
         $this->headers = [
            'Content-Type'=>'text/html;charset=UTF-8',
            'Connection'=>'keep-alive',
-           //'Content-Encoding'=>'gzip',
+           'Content-Encoding'=>'gzip',
         ];
         $this->bodyLen = 0;
     }
@@ -116,12 +116,9 @@ abstract class HttpInterface
     public function send(string $data, $bodylen=0)
     {
         $response = '';
-		/*
         if (isset($this->headers['Content-Encoding'])  && $this->headers['Content-Encoding'] == 'gzip') {
             $data = \gzencode($data);
         }
-		*/
-      
         $len = strlen($data);
         if ($this->bodyLen == 0) {
             $this->bodyLen = ($bodylen!= 0) ? $bodylen : $len;
@@ -207,7 +204,7 @@ abstract class HttpInterface
     {
         $handle = fopen($path, "r");
         while (!feof($handle)) {
-            yield fread($handle, 1024);//1048576
+            yield fread($handle, 65535);
         }
         fclose($handle);
     }
