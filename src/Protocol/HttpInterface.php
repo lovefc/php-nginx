@@ -25,8 +25,6 @@ abstract class HttpInterface
 
     public $fd;
 
-    public $bufferSize = 1024*10;
-
     public $getHeaders;
 
     public $types;
@@ -166,9 +164,7 @@ abstract class HttpInterface
     public function handleData($data)
     {
         //有文件头，来处理head头
-		//$this->protocolHeader
-        if (stripos($data, 'HTTP/1.1')) {
-            //echo $data.PHP_EOL;
+        if (stripos($data, $this->protocolHeader)) {
             $data2 = explode("\r\n\r\n", $data)[0];
             $header = explode("\r\n", $data2);
             list($method, $query, $protocolHeader) = explode(" ", $header[0]);
@@ -181,8 +177,8 @@ abstract class HttpInterface
                 $v2 = substr($v, $v_num);
                 $head[trim($head2[0])] = trim($v2);
             }
+		    $_SERVER = array_merge($_SERVER,$head);			
             $_SERVER['DOCUMENT_ROOT'] = getcwd();
-            $_SERVER['HEADERS'] = $head;
             $_SERVER['METHOD'] = $method;
             $_SERVER['QUERY'] = $query;
             $head = $head2 = '';		
@@ -222,13 +218,12 @@ abstract class HttpInterface
                 $this->types = include(__DIR__.'/Type.php');			
             }
             $type = $this->types;
-            //$this->isStatic = 1;
             $ext = $this->getExt($file);
             $connect_type = $type[$ext] ?? null;
             if ($connect_type) {
                 // 获取文件修改时间
                 $fileTime = date('r', filemtime($file));
-                $since = $_SERVER['HEADERS']['If-Modified-Since'] ?? null;
+                $since = $_SERVER['If-Modified-Since'] ?? null;
                 $is_cache = 0;
                 if ($since) {
                     $sinceTime = strtotime($since);
@@ -248,12 +243,7 @@ abstract class HttpInterface
                     }
                 }
                 if ($is_cache == 0) {
-                    ////'Etag'=>md5($fileTime), //'Cache-Control'=>'max-age=7200'
-                    //$expires = date('r',time() + $this->cacheTime);
-                    //'Expires'=>$expires
-                    //Content-Encoding: gzip
                     $lastTime = date('r');
-                    //'Content-Encoding'=>'gzip'
                     $this->setHeader(200, ['Content-type'=>$connect_type,'Last-Modified'=>$lastTime,'Etag'=>md5($fileTime.$file), 'data'=>$lastTime, 'Cache-Control'=>'max-age='.$this->cacheTime]);
 					if(isset($this->files[$file])){
                         $filesize = $this->files[$file];
