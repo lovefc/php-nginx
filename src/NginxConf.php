@@ -20,7 +20,11 @@ class NginxConf
      "ssl_certificate_key",
      "access_log",
      "error_log",
+	 "gzip",
+	 "gzip_types",
+	 "gzip_comp_level",
     ];
+	
     /**
      * 获取文件夹内指定后缀的所有文件
      * @param array $result 结果集
@@ -44,6 +48,10 @@ class NginxConf
             }
         }
     }
+	/**
+	 * 读取nginx配置文件信息
+     * @param string $file 文件名称	 
+	 */
     public static function getConf($file)
     {
         $text = file_get_contents($file);
@@ -59,6 +67,9 @@ class NginxConf
             $text2 = substr($text, 0, 1);
             foreach (self::$parameters  as $v2) {
                 if ($text2!='#' && preg_match("/{$v2}\s+/is", $text)) {
+					if ($v2=='root'){
+						$text = preg_replace("/\"/i", "", $text);
+					}					
                     $arrs = array_filter(explode(" ", trim(substr($text, strlen($v2)))));
                     if ($v2!='index') {
                         sort($arrs);
@@ -70,23 +81,18 @@ class NginxConf
 		return $confs;
     }
 	
-	public static function readConf($path='',$extension=[]){
-        $files = [];
-		$path = __DIR__;
-		$extensions = ['conf'];
+	public static function readConf($path='',$extensions=['conf']){
+		if(!is_dir($path)) return false;
+		$files = [];
 		self::getFiles($files, $path, $extensions);
 		foreach($files as $v){
 			$conf = self::getConf($v);
 			foreach($conf['server_name'] as $v){
 				if(isset(self::$Configs[$v])){
-					die("{$v}-The domain name is bound, and it is bound repeatedly, Please check the configuration!");
+					die(Tools::colorFont("{$v}-The domain name is bound, and it is bound repeatedly, Please check the configuration!","红"));
 				}
 				self::$Configs[$v] = $conf;
 			}
 		}
 	}
 }
-
-//NginxConf::readConf();
-
-//print_r(NginxConf::$Configs);

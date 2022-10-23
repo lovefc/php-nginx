@@ -1,0 +1,12 @@
+在线生成地址：https://www.chinassl.net/ssltools/generator-csr.html
+
+windows:
+
+
+
+ubuntu:
+
+apt-get install openssl
+openssl req -nodes -newkey rsa:2048 -keyout /home/wwwroot/php-static/conf/ssl/server.key -out  /home/wwwroot/php-static/conf/ssl/server.csr
+cd /home/wwwroot/php-static/conf/ssl/
+openssl x509 -req -days 1825 -in server.csr -signkey server.key -out server.crt

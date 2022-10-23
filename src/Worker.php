@@ -210,7 +210,7 @@ class Worker
         if (!$client) {
             return false;
         }
-        $buffer = fread($client, 65535);
+        $buffer = is_resource($client) && fread($client, 65535);
         // 关闭链接
         if (empty($buffer) && (feof($client) || !is_resource($client))) {
             $this->closeStock($client);
