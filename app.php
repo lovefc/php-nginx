@@ -36,9 +36,8 @@ LoaderClass::register();
 
 \FC\NginxConf::readConf(PATH.'/conf/vhosts');
 
-function work($server_name)
+function work($server_name, $port)
 {
-	$port = \FC\NginxConf::$Configs[$server_name]['listen'][0] ?? 0;
 	$cert = \FC\NginxConf::$Configs[$server_name]['ssl_certificate'][0] ?? null;
 	$key  = \FC\NginxConf::$Configs[$server_name]['ssl_certificate_key'][0] ?? null;
     if (!empty($cert) && !empty($key)) {
@@ -68,10 +67,12 @@ function work($server_name)
 }
 
 
-$arg = getopt('c:');
+$arg = getopt('h:p:');
 
-$server_name = $arg['c'] ? $arg['c'] : null;
+$server_name = $arg['h'] ? $arg['h'] : null;
 
-if(!$server_name) die('执行失败');
+$port = $arg['p'] ? $arg['p'] : null;
 
-work($server_name);
+(!$server_name || !$port) && die('执行失败');
+
+work($server_name,$port);

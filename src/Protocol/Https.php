@@ -16,7 +16,7 @@ class Https extends HttpInterface
         $this->server->on('receive', [$this,"_onReceive"]);
         $this->server->on('close', [$this,"_onClose"]);
         /** 初始默认 **/
-        $this->init();
+        $this->init();	
     }
 
     // https解密

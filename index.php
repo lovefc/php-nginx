@@ -2,7 +2,7 @@
 /*
  * @Author       : lovefc
  * @Date         : 2022-09-03 02:11:36
- * @LastEditTime : 2022-10-21 19:35:18
+ * @LastEditTime : 2022-10-23 17:42:53
  */
 
 ini_set("display_errors", "On");//打开错误提示
@@ -39,9 +39,9 @@ LoaderClass::register();
 
 function work($server_name)
 {
-	$port = \FC\NginxConf::$Configs[$server_name]['listen'][0] ?? 0;
-	$cert = \FC\NginxConf::$Configs[$server_name]['ssl_certificate'][0] ?? null;
-	$key  = \FC\NginxConf::$Configs[$server_name]['ssl_certificate_key'][0] ?? null;
+    $port = \FC\NginxConf::$Configs[$server_name]['listen'][0] ?? 0;
+    $cert = \FC\NginxConf::$Configs[$server_name]['ssl_certificate'][0] ?? null;
+    $key  = \FC\NginxConf::$Configs[$server_name]['ssl_certificate_key'][0] ?? null;
     if (!empty($cert) && !empty($key)) {
         $context_option = array(
             'ssl' => array(
@@ -94,7 +94,7 @@ if (is_resource($process)) {
 
     echo stream_get_contents($pipes[1]);
     fclose($pipes[1]);
-    
+
 
     // 切记：在调用 proc_close 之前关闭所有的管道以避免死锁。
     $return_value = proc_close($process);
@@ -103,33 +103,27 @@ if (is_resource($process)) {
 }
 
 */
+//print_r(\FC\NginxConf::$Configs);
 foreach (\FC\NginxConf::$Configs as $k=>$v) {
     $server_name = $k;
     $cert = $v['ssl_certificate'][0] ?? '';
     $key = $v['ssl_certificate_key'][0] ?? '';
     foreach ($v['listen'] as $port) {
-
-
-$cmd = 'php '.PATH.'/app.php -c '.$server_name.' &';
-
-$cwd = null;
-
-$env = null;
-
-//$process = proc_open($cmd, $descriptorspec, $pipes, $cwd, $env,['bypass_shell'=>true]);
-	
-$process = proc_close(proc_open ($cmd, array(), $pipes, $cwd, $env, ['bypass_shell'=>true,'create_process_group'=>true,'create_new_console'=>true,'blocking_pipes'=>false]));
-
-if (is_resource($process)) {
-    // 切记：在调用 proc_close 之前关闭所有的管道以避免死锁。
-    $return_value = proc_close($process);
-    echo "command returned $return_value\n";
-}
-	
-		//work($server_name);
+        $cmd = 'php '.PATH.'/app2.php -h '.$server_name.' -p '.$port.' &';
+        $cwd = null;
+        $env = null;
+        //
+		//pclose(popen($cmd, 'r'));
+		
+        $process = proc_open($cmd, array(), $pipes, $cwd, $env, ['bypass_shell'=>true,'blocking_pipes'=>true]);
+        //stream_set_blocking($pipes[1], 0);
+        //stream_set_blocking($pipes[2], 0);
+        if (is_resource($process)) {
+            // 切记：在调用 proc_close 之前关闭所有的管道以避免死锁。
+           proc_close($process);
+        }
     }
 }
-//pclose($file);
 
 /*
 //apt-get install openssl

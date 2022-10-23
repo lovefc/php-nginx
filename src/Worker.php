@@ -66,8 +66,8 @@ class Worker
     public function __construct($local_socket, $context_option=[])
     {
         $this->stockAddres($local_socket);
-        echo $this->transport.PHP_EOL;
-        echo $this->protocol.PHP_EOL;
+       // echo $this->transport.PHP_EOL;
+        //echo $this->protocol.PHP_EOL;
         $context = [];
         $context = stream_context_create($context_option);
         // 开启多端口监听,并且实现负载均衡
@@ -75,16 +75,16 @@ class Worker
         // 对于 UDP 套接字，您必须使用STREAM_SERVER_BIND作为flags参数
         $flags = $this->transport === 'udp' ? STREAM_SERVER_BIND : STREAM_SERVER_BIND | STREAM_SERVER_LISTEN;
         $local_text = $this->protocol.'://'.$this->host.':'.$this->port;
-        echo $local_text.PHP_EOL;
+        //echo $local_text.PHP_EOL;
         //$flags一个位掩码字段，可以设置为套接字创建标志的任意组合。对于 UDP 套接字，您必须STREAM_SERVER_BIND用作flags参数。
         //$context 8.0 可以为空,在其它版本下，如果不需要设置，则必须设置为一个空数组
         $errno = 0;
         $errmsg = '';
         $this->socket = stream_socket_server($local_text, $errno, $errmsg, $flags, $context);
-        if (is_resource($this->socket)) {
-            echo "{$local_socket} 创建成功" . PHP_EOL;
-        } else {
-            die("{$local_socket} 创建失败") . PHP_EOL;
+        if (!is_resource($this->socket)) {
+            //echo "{$local_socket} 创建成功" . PHP_EOL;
+        //} else {
+            die("{$local_socket} Creation failed.") . PHP_EOL;
         }
 
         // ssl 先不进行加密
