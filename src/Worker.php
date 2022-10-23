@@ -66,8 +66,8 @@ class Worker
     public function __construct($local_socket, $context_option=[])
     {
         $this->stockAddres($local_socket);
-        // echo $this->transport.PHP_EOL;
-        // echo $this->protocol.PHP_EOL;
+        echo $this->transport.PHP_EOL;
+        echo $this->protocol.PHP_EOL;
         $context = [];
         $context = stream_context_create($context_option);
         // 开启多端口监听,并且实现负载均衡
@@ -75,7 +75,7 @@ class Worker
         // 对于 UDP 套接字，您必须使用STREAM_SERVER_BIND作为flags参数
         $flags = $this->transport === 'udp' ? STREAM_SERVER_BIND : STREAM_SERVER_BIND | STREAM_SERVER_LISTEN;
         $local_text = $this->protocol.'://'.$this->host.':'.$this->port;
-
+        echo $local_text.PHP_EOL;
         //$flags一个位掩码字段，可以设置为套接字创建标志的任意组合。对于 UDP 套接字，您必须STREAM_SERVER_BIND用作flags参数。
         //$context 8.0 可以为空,在其它版本下，如果不需要设置，则必须设置为一个空数组
         $errno = 0;
@@ -166,7 +166,6 @@ class Worker
         $write = $this->_writeFds;
         $except = $this->_exceptFds;
         stream_select($read, $write, $except, 0, $this->selectTimeout);
-		
         foreach ($read as $socket) {
             if($socket === $this->socket) {
 				$this->createSocket();
@@ -174,7 +173,6 @@ class Worker
                 $this->receive($socket);				
 			}
         }
-
         foreach ($write as $fd) {
             //var_dump($fd);
         }
@@ -210,7 +208,8 @@ class Worker
         if (!$client) {
             return false;
         }
-        $buffer = is_resource($client) && fread($client, 65535);
+		//is_resource($client) && 
+        $buffer = fread($client, 65535);
         // 关闭链接
         if (empty($buffer) && (feof($client) || !is_resource($client))) {
             $this->closeStock($client);

@@ -34,6 +34,10 @@ abstract class HttpInterface
     public $files = [];
 	
 	public $isHand = [];
+	
+	public $documentRoot = null; // 主目录
+	
+	public $serverName = null; // 域名
 
     // 事件
     private $events = [
@@ -164,6 +168,7 @@ abstract class HttpInterface
     public function handleData($data)
     {
         //有文件头，来处理head头
+		echo $data.PHP_EOL;
         if (stripos($data, $this->protocolHeader)) {
             $data2 = explode("\r\n\r\n", $data)[0];
             $header = explode("\r\n", $data2);
@@ -178,9 +183,10 @@ abstract class HttpInterface
                 $head[trim($head2[0])] = trim($v2);
             }
 		    $_SERVER = array_merge($_SERVER,$head);			
-            $_SERVER['DOCUMENT_ROOT'] = getcwd();
+            $_SERVER['DOCUMENT_ROOT'] = $this->documentRoot ?? getcwd();
             $_SERVER['METHOD'] = $method;
             $_SERVER['QUERY'] = $query;
+			//print_r($_SERVER);
             $head = $head2 = '';		
             return $this->staticDir();
         }
@@ -208,7 +214,6 @@ abstract class HttpInterface
     // 静态目录绑定
     public function staticDir()
     {
-        
         // 如果是文件
         $file = $_SERVER['DOCUMENT_ROOT'].$_SERVER['QUERY'];
         $arr = parse_url($file);
