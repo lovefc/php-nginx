@@ -9,7 +9,7 @@ namespace FC\Protocol;
 
 class Http extends HttpInterface
 {
-    public function __construct($text, $context_option=[])
+    public function __construct($text, $context_option=[], $document_root, $default_index=[])
     {
         $this->server = new \FC\Worker('http://'.$text);
         $this->server->on('connect', [$this,"_onConnect"]);
@@ -17,6 +17,8 @@ class Http extends HttpInterface
         $this->server->on('close', [$this,"_onClose"]);
         /** 初始默认 **/
         $this->init();
+		$this->documentRoot =  $document_root;
+		$this->defaultIndex = $default_index;
     }
 
     public function socketAccept($server)

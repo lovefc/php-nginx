@@ -2,7 +2,7 @@
 /*
  * @Author       : lovefc
  * @Date         : 2022-10-21 16:36:41
- * @LastEditTime : 2022-10-21 16:38:24
+ * @LastEditTime : 2022-10-24 13:04:56
  */
 
 namespace FC;
@@ -11,20 +11,34 @@ class NginxConf
 {
     public static $Configs = [];
     public static $parameters = [
-     "listen",
-     "server_name",
-     "root",
-     "index",
-     "error_page",
-     "ssl_certificate",
-     "ssl_certificate_key",
-     "access_log",
-     "error_log",
-	 "gzip",
-	 "gzip_types",
-	 "gzip_comp_level",
+      "listen",
+      "server_name",
+      "root",
+      "index",
+      "error_page",
+      "ssl_certificate",
+      "ssl_certificate_key",
+      "access_log",
+      "error_log",
+      "gzip",
+      "gzip_types",
+      "gzip_comp_level",
     ];
-	
+
+    public static function defaultConf()
+    {
+		$dir = dirname(__DIR__);
+        $conf = [
+            '127.0.0.1' => [
+                'listen' => [80],
+                'server_name' => ['127.0.0.1'],
+                'root' => [$dir.'/html'],
+                'index' => ['index.html','index.htm']
+            ]
+        ];
+        return $conf;
+    }
+
     /**
      * 获取文件夹内指定后缀的所有文件
      * @param array $result 结果集
@@ -48,10 +62,10 @@ class NginxConf
             }
         }
     }
-	/**
-	 * 读取nginx配置文件信息
-     * @param string $file 文件名称	 
-	 */
+    /**
+     * 读取nginx配置文件信息
+     * @param string $file 文件名称
+     */
     public static function getConf($file)
     {
         $text = file_get_contents($file);
@@ -67,9 +81,9 @@ class NginxConf
             $text2 = substr($text, 0, 1);
             foreach (self::$parameters  as $v2) {
                 if ($text2!='#' && preg_match("/{$v2}\s+/is", $text)) {
-					if ($v2=='root'){
-						$text = preg_replace("/\"/i", "", $text);
-					}					
+                    if ($v2=='root') {
+                        $text = preg_replace("/\"/i", "", $text);
+                    }
                     $arrs = array_filter(explode(" ", trim(substr($text, strlen($v2)))));
                     if ($v2!='index') {
                         sort($arrs);
@@ -78,21 +92,26 @@ class NginxConf
                 }
             }
         }
-		return $confs;
+        return $confs;
     }
-	
-	public static function readConf($path='',$extensions=['conf']){
-		if(!is_dir($path)) return false;
-		$files = [];
-		self::getFiles($files, $path, $extensions);
-		foreach($files as $v){
-			$conf = self::getConf($v);
-			foreach($conf['server_name'] as $v){
-				if(isset(self::$Configs[$v])){
-					die(Tools::colorFont("{$v}-The domain name is bound, and it is bound repeatedly, Please check the configuration!","红"));
-				}
-				self::$Configs[$v] = $conf;
-			}
-		}
-	}
+
+    public static function readConf($path='', $extensions=['conf'])
+    {
+        if (!is_dir($path)) {
+            return false;
+        }
+        $files = [];
+        self::getFiles($files, $path, $extensions);
+        foreach ($files as $v) {
+            $conf = self::getConf($v);
+            foreach ($conf['server_name'] as $v) {
+                if (isset(self::$Configs[$v])) {
+                    die(Tools::colorFont("{$v}-The domain name is bound, and it is bound repeatedly, Please check the configuration!", "红"));
+                }
+                self::$Configs[$v] = $conf;
+            }
+        }
+		$conf2 = self::defaultConf();
+		self::$Configs = array_merge($conf2, self::$Configs);
+    }
 }
