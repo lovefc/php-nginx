@@ -61,7 +61,7 @@ abstract class HttpInterface
         $this->headers = [
            'Content-Type'=>'text/html;charset=UTF-8',
            'Connection'=>'keep-alive',
-           'Content-Encoding'=>'gzip',
+           //'Content-Encoding'=>'gzip',
         ];
         $this->bodyLen = 0;
     }
@@ -89,8 +89,6 @@ abstract class HttpInterface
 		$status = $this->handleData($data);
         if(!$status){
 			/*
-			$query = '/50x.html';
-			$this->staticDir($query);
             is_callable($this->onMessage) && call_user_func_array($this->onMessage, [$this, $data]);
 			*/
 			$this->page404();
@@ -100,6 +98,7 @@ abstract class HttpInterface
 	public function page404(){
 	    $data = '<html><head><title>404 Not Found</title></head><body><center><h1>404 Not Found</h1></center><hr><center>php-nginx/0.01</center></body></html>';
 		$this->setHeader(404);
+		print_r($this->headers);
 		$this->send($data);
 	}
 
@@ -125,10 +124,12 @@ abstract class HttpInterface
     }
 
     // 设置文件头
-    public function setHeader($code, $headers = [])
+    public function setHeader($code, $headers = '')
     {
         $this->headerCode = $code;
-        $this->headers = $headers;
+		if(!empty($headers) && is_array($headers)){
+           $this->headers = $headers;
+		}
     }
 
     // 发送消息

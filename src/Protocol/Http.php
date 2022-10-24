@@ -9,7 +9,7 @@ namespace FC\Protocol;
 
 class Http extends HttpInterface
 {
-    public function __construct($text, $context_option=[], $document_root, $default_index=[])
+    public function __construct($text, $context_option=[], $document_root='', $default_index=[])
     {
         $this->server = new \FC\Worker('http://'.$text);
         $this->server->on('connect', [$this,"_onConnect"]);

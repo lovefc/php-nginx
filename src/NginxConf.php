@@ -2,7 +2,7 @@
 /*
  * @Author       : lovefc
  * @Date         : 2022-10-21 16:36:41
- * @LastEditTime : 2022-10-24 13:04:56
+ * @LastEditTime : 2022-10-24 22:45:47
  */
 
 namespace FC;
@@ -27,7 +27,7 @@ class NginxConf
 
     public static function defaultConf()
     {
-		$dir = dirname(__DIR__);
+        $dir = dirname(__DIR__);
         $conf = [
             '127.0.0.1' => [
                 'listen' => [80],
@@ -111,7 +111,7 @@ class NginxConf
                 self::$Configs[$v] = $conf;
             }
         }
-		$conf2 = self::defaultConf();
-		self::$Configs = array_merge($conf2, self::$Configs);
+        $conf2 = self::defaultConf();
+        self::$Configs = array_merge($conf2, self::$Configs);
     }
 }

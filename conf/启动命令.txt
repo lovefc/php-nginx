@@ -1,3 +1,0 @@
-php php-nginx start
-php php-nginx stop
-php php-nginx reload

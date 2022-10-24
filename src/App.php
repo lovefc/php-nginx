@@ -2,13 +2,14 @@
 /*
  * @Author       : lovefc
  * @Date         : 2022-09-03 02:11:36
- * @LastEditTime : 2022-10-24 11:49:58
+ * @LastEditTime : 2022-10-24 23:09:07
  */
 
 namespace FC;
 
 class App
 {
+	//public static $is_win = (PATH_SEPARATOR == ';') ? true : false
     // 获取php文件位置
     public static function getPhpPath()
     {
@@ -65,6 +66,20 @@ class App
         return $php_ini;
     }
 
+    public static function execCmd($cmd)
+    {
+        if (substr(php_uname(), 0, 7) == "Windows") {
+            pclose(popen("start /B ".$cmd, "r"));
+			sleep(1);
+        } else {
+            $cwd = $env = null;
+            $process = proc_open($cmd, [], $pipes, $cwd, $env);
+            if (is_resource($process)) {
+                proc_close($process);
+            }
+        }
+    }
+
     public static function run()
     {
         \FC\NginxConf::readConf(PATH.'/conf/vhosts');
@@ -75,26 +90,19 @@ class App
             foreach ($v['listen'] as $port) {
 				$php_path = self::getPhpPath();
                 $cmd = $php_path.' '.PATH.'/app.php -h '.$server_name.' -p '.$port.' &';
-                $cwd = null;
-                $env = null;
-                //['bypass_shell'=>true,'blocking_pipes'=>true]
-                $process = proc_open($cmd, [], $pipes, $cwd, $env);
-                if (is_resource($process)) {
-                    // 切记：在调用 proc_close 之前关闭所有的管道以避免死锁。
-                    proc_close($process);
-                }
+                self::execCmd($cmd);
             }
         }
     }
     public static function work($server_name, $port)
     {
-		\FC\NginxConf::readConf(PATH.'/conf/vhosts');
+        \FC\NginxConf::readConf(PATH.'/conf/vhosts');
         $process_title = "php.nginx-{$server_name}";//PHP 5.5.0
         cli_set_process_title($process_title);
         $cert = NginxConf::$Configs[$server_name]['ssl_certificate'][0] ?? null;
         $key  = NginxConf::$Configs[$server_name]['ssl_certificate_key'][0] ?? null;
-	    $document_root = NginxConf::$Configs[$server_name]['root'][0] ?? null;
-		$default_index = NginxConf::$Configs[$server_name]['index'] ?? [];
+        $document_root = NginxConf::$Configs[$server_name]['root'][0] ?? null;
+        $default_index = NginxConf::$Configs[$server_name]['index'] ?? [];
         if (!empty($cert) && !empty($key)) {
             $context_option = array(
                 'ssl' => array(
@@ -105,9 +113,9 @@ class App
             );
             $obj = new \FC\Protocol\Https("0.0.0.0:{$port}", $context_option, $document_root, $default_index);
         } else {
-            $obj = new \FC\Protocol\Http("0.0.0.0:{$port}",[], $document_root, $default_index);
+            $obj = new \FC\Protocol\Http("0.0.0.0:{$port}", [], $document_root, $default_index);
         }
-		/*
+        /*
         $obj->on('connect', function ($fd) {
         });
         $obj->on('message', function ($server, $data) {
@@ -115,7 +123,7 @@ class App
         });
         $obj->on('close', function ($fd) {
         });
-		*/
+        */
         $obj->start();
     }
 

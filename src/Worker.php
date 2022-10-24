@@ -2,7 +2,7 @@
 /*
  * @Author       : lovefc
  * @Date         : 2022-09-03 02:11:36
- * @LastEditTime : 2022-10-18 10:49:27
+ * @LastEditTime : 2022-10-24 22:45:54
  */
 
 namespace FC;
@@ -20,8 +20,8 @@ class Worker
     public $onConnect;
 
     public $onClose;
-	
-	public $onDecrypt;
+
+    public $onDecrypt;
 
     public $socketList = [];
 
@@ -66,7 +66,7 @@ class Worker
     public function __construct($local_socket, $context_option=[])
     {
         $this->stockAddres($local_socket);
-       // echo $this->transport.PHP_EOL;
+        // echo $this->transport.PHP_EOL;
         //echo $this->protocol.PHP_EOL;
         $context = [];
         $context = stream_context_create($context_option);
@@ -83,7 +83,7 @@ class Worker
         $this->socket = stream_socket_server($local_text, $errno, $errmsg, $flags, $context);
         if (!is_resource($this->socket)) {
             //echo "{$local_socket} 创建成功" . PHP_EOL;
-        //} else {
+            //} else {
             die("{$local_socket} Creation failed.") . PHP_EOL;
         }
 
@@ -167,11 +167,11 @@ class Worker
         $except = $this->_exceptFds;
         stream_select($read, $write, $except, 0, $this->selectTimeout);
         foreach ($read as $socket) {
-            if($socket === $this->socket) {
-				$this->createSocket();
-		    }else {		
-                $this->receive($socket);				
-			}
+            if ($socket === $this->socket) {
+                $this->createSocket();
+            } else {
+                $this->receive($socket);
+            }
         }
         foreach ($write as $fd) {
             //var_dump($fd);
@@ -208,22 +208,22 @@ class Worker
         if (!$client) {
             return false;
         }
-		//is_resource($client) && 
+        //is_resource($client) &&
         $buffer = fread($client, 65535);
         // 关闭链接
         if (empty($buffer) && (feof($client) || !is_resource($client))) {
             $this->closeStock($client);
         }
-		
+
         is_callable($this->onReceive) && call_user_func_array($this->onReceive, [$this->socket, $client, $buffer]);
     }
 
     // 信息发送
     public function send($client, $data)
     {
-		if(is_resource($client)){
+        if (is_resource($client)) {
             fwrite($client, $data);
-		}
+        }
     }
 
     // 事件绑定

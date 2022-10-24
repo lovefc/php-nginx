@@ -9,15 +9,16 @@ namespace FC\Protocol;
 
 class Http2 extends HttpInterface
 {
-    public function __construct($text, $context_option=[])
+    public function __construct($text, $context_option=[], $document_root='', $default_index=[])
     {
         $this->server = new \FC\Worker('https://'.$text, $context_option);
         $this->server->on('connect', [$this,"_onConnect"]);
-        $this->server->on('receive', [$this,"_onReceive"]);
-        //$this->server->on('decrypt', [$this,"_onDecrypt"]);		
+        $this->server->on('receive', [$this,"_onReceive"]);	
         $this->server->on('close', [$this,"_onClose"]);
         /** 初始默认 **/
         $this->init();
+		$this->documentRoot =  $document_root;
+		$this->defaultIndex = $default_index;		
     }
 	
     // 初始化参数
