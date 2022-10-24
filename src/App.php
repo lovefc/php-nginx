@@ -2,14 +2,14 @@
 /*
  * @Author       : lovefc
  * @Date         : 2022-09-03 02:11:36
- * @LastEditTime : 2022-10-24 23:09:07
+ * @LastEditTime : 2022-10-25 02:00:33
  */
 
 namespace FC;
 
 class App
 {
-	//public static $is_win = (PATH_SEPARATOR == ';') ? true : false
+    //public static $is_win = (PATH_SEPARATOR == ';') ? true : false
     // 获取php文件位置
     public static function getPhpPath()
     {
@@ -70,7 +70,7 @@ class App
     {
         if (substr(php_uname(), 0, 7) == "Windows") {
             pclose(popen("start /B ".$cmd, "r"));
-			sleep(1);
+            sleep(1);
         } else {
             $cwd = $env = null;
             $process = proc_open($cmd, [], $pipes, $cwd, $env);
@@ -83,12 +83,13 @@ class App
     public static function run()
     {
         \FC\NginxConf::readConf(PATH.'/conf/vhosts');
+        //print_r(NginxConf::$Configs);
         foreach (\FC\NginxConf::$Configs as $k=>$v) {
             $server_name = $k;
             $cert = $v['ssl_certificate'][0] ?? '';
             $key = $v['ssl_certificate_key'][0] ?? '';
             foreach ($v['listen'] as $port) {
-				$php_path = self::getPhpPath();
+                $php_path = self::getPhpPath();
                 $cmd = $php_path.' '.PATH.'/app.php -h '.$server_name.' -p '.$port.' &';
                 self::execCmd($cmd);
             }
@@ -101,8 +102,8 @@ class App
         cli_set_process_title($process_title);
         $cert = NginxConf::$Configs[$server_name]['ssl_certificate'][0] ?? null;
         $key  = NginxConf::$Configs[$server_name]['ssl_certificate_key'][0] ?? null;
-        $document_root = NginxConf::$Configs[$server_name]['root'][0] ?? null;
-        $default_index = NginxConf::$Configs[$server_name]['index'] ?? [];
+        //$document_root = NginxConf::$Configs[$server_name]['root'][0] ?? null;
+        //$default_index = NginxConf::$Configs[$server_name]['index'] ?? [];
         if (!empty($cert) && !empty($key)) {
             $context_option = array(
                 'ssl' => array(
@@ -111,9 +112,9 @@ class App
                     'verify_peer' => false, // 是否需要验证 SSL 证书,默认为true
                 )
             );
-            $obj = new \FC\Protocol\Https("0.0.0.0:{$port}", $context_option, $document_root, $default_index);
+            $obj = new \FC\Protocol\Https("0.0.0.0:{$port}", $context_option);
         } else {
-            $obj = new \FC\Protocol\Http("0.0.0.0:{$port}", [], $document_root, $default_index);
+            $obj = new \FC\Protocol\Http("0.0.0.0:{$port}", []);
         }
         /*
         $obj->on('connect', function ($fd) {

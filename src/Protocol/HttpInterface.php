@@ -22,10 +22,10 @@ abstract class HttpInterface
     public $headerCode = 200;
 
     public $onMessage;
-	
-	public $onConnect;
-	
-	public $onClose;
+
+    public $onConnect;
+
+    public $onClose;
 
     public $fd;
 
@@ -36,14 +36,12 @@ abstract class HttpInterface
     public $cacheTime = 10;
 
     public $files = [];
-	
-	public $isHand = [];
-	
-	public $documentRoot = null; // 主目录
-	
-	public $serverName = null; // 域名
-	
-	public $defaultIndex = []; // 默认索引文件
+
+    public $isHand = [];
+
+    public $documentRoot = null; // 主目录
+
+    public $defaultIndex = []; // 默认索引文件
 
     // 事件
     private $events = [
@@ -72,6 +70,12 @@ abstract class HttpInterface
         $this->server->start();
     }
 
+    // 设置系统参数
+    public function setEnv($server_name){
+        $this->documentRoot = \FC\NginxConf::$Configs[$server_name]['root'][0] ?? null;
+        $this->defaultIndex = \FC\NginxConf::$Configs[$server_name]['index'] ?? [];	
+        $_SERVER['DOCUMENT_ROOT'] = $this->documentRoot;
+	}
 
     // 连接
     public function _onConnect($server)
@@ -85,22 +89,26 @@ abstract class HttpInterface
     public function _onReceive($server, $fd, $data)
     {
         $this->fd = $fd;
-		$this->init();
-		$status = $this->handleData($data);
-        if(!$status){
-			/*
-            is_callable($this->onMessage) && call_user_func_array($this->onMessage, [$this, $data]);
-			*/
-			$this->page404();
-		}
+        $this->init();
+        if ($this->handleData($data)) {
+			$this->setEnv($_SERVER['Host']);
+            $status = $this->staticDir($_SERVER['QUERY']);
+            if (!$status) {
+                /*
+                is_callable($this->onMessage) && call_user_func_array($this->onMessage, [$this, $data]);
+                */
+                $this->page404();
+            }
+        }
     }
-	
-	public function page404(){
-	    $data = '<html><head><title>404 Not Found</title></head><body><center><h1>404 Not Found</h1></center><hr><center>php-nginx/0.01</center></body></html>';
-		$this->setHeader(404);
-		print_r($this->headers);
-		$this->send($data);
-	}
+    
+	// 错误页面
+    public function page404()
+    {
+        $data = '<html><head><title>404 Not Found</title></head><body><center><h1>404 Not Found</h1></center><hr><center>php-nginx/0.01</center></body></html>';
+        $this->setHeader(404);
+        $this->send($data);
+    }
 
     // 关闭
     public function _onClose($fd)
@@ -112,7 +120,7 @@ abstract class HttpInterface
     // 解析获取的文件头
     public function _getHeader($code, $header = [])
     {
-		$response = '';
+        $response = '';
         if (is_array($header) && count($header) > 0) {
             foreach ($header as $k=>$v) {
                 $response .= "{$k}:{$v}".$this->separator;
@@ -127,9 +135,9 @@ abstract class HttpInterface
     public function setHeader($code, $headers = '')
     {
         $this->headerCode = $code;
-		if(!empty($headers) && is_array($headers)){
-           $this->headers = $headers;
-		}
+        if (!empty($headers) && is_array($headers)) {
+            $this->headers = $headers;
+        }
     }
 
     // 发送消息
@@ -144,7 +152,7 @@ abstract class HttpInterface
             $this->bodyLen = ($bodylen!= 0) ? $bodylen : $len;
             $response =  $this->_getHeader($this->headerCode, $this->headers);
             $response = stripcslashes($response);
-        }		
+        }
         $response .= $data;
         $this->server->send($this->fd, $response);
         $response = '';
@@ -158,7 +166,7 @@ abstract class HttpInterface
         $response = stripcslashes($response);
         $this->server->send($this->fd, $response);
     }
-	
+
     // 获取状态码
     public function getHttpCode($code)
     {
@@ -169,16 +177,6 @@ abstract class HttpInterface
     public function getHttpMethod($method)
     {
         return in_array($method, HttpCode::$METHODS[$method]) ?? false;
-    }
-
-
-    public function runtime($start_time)
-    {
-        //$start_time = microtime(true);
-        $end_time = microtime(true);
-        $thistime = $end_time-$start_time;
-        $thistime = round($thistime, 3);
-        echo "执行耗时：".($thistime*1000)." 毫秒。".PHP_EOL;
     }
 
     // 处理数据
@@ -198,14 +196,14 @@ abstract class HttpInterface
                 $v2 = substr($v, $v_num);
                 $head[trim($head2[0])] = trim($v2);
             }
-		    $_SERVER = array_merge($_SERVER,$head);			
+            $_SERVER = array_merge($_SERVER, $head);
             $_SERVER['DOCUMENT_ROOT'] = $this->documentRoot ?? getcwd();
             $_SERVER['METHOD'] = $method;
             $_SERVER['QUERY'] = $query;
-            $head = $head2 = '';		
-            return $this->staticDir($_SERVER['QUERY']);
+            $head = $head2 = '';
+            return true;
         }
-		return false;
+        return false;
     }
 
     // 获取文件后缀
@@ -225,22 +223,23 @@ abstract class HttpInterface
         }
         fclose($handle);
     }
-	
-	public function getDefaultIndex($query){
-		$arr = parse_url($query);
+
+    public function getDefaultIndex($query)
+    {
+        $arr = parse_url($query);
         $path =  $arr['path'] ?? '';
-		$query2 = $arr['query'] ?? '';
-		if($path == '/'){
-			foreach($this->defaultIndex as $index){
-				$file = $this->documentRoot.'/'.$index;		
-				if(is_file($file)){
-					$_SERVER['QUERY'] = $index."?{$query2}";
-					return $file;
-				}
-			}
-		}
-		return $this->documentRoot.$path;
-	}
+        $query2 = $arr['query'] ?? '';
+        if ($path == '/') {
+            foreach ($this->defaultIndex as $index) {
+                $file = $this->documentRoot.'/'.$index;
+                if (is_file($file)) {
+                    $_SERVER['QUERY'] = $index."?{$query2}";
+                    return $file;
+                }
+            }
+        }
+        return $this->documentRoot.$path;
+    }
 
     // 静态目录绑定
     public function staticDir($query)
@@ -248,7 +247,7 @@ abstract class HttpInterface
         $file = $this->getDefaultIndex($query);
         if (isset($this->files[$file]) || is_file($file)) {
             if (empty($this->types)) {
-                $this->types = include(__DIR__.'/Type.php');			
+                $this->types = include(__DIR__.'/Type.php');
             }
             $type = $this->types;
             $ext = $this->getExt($file);
@@ -276,26 +275,26 @@ abstract class HttpInterface
                 }
                 if ($is_cache == 0) {
                     $lastTime = date('r');
-					//'Last-Modified'=>$lastTime,'Etag'=>md5($fileTime.$file), 'data'=>$lastTime, 'Cache-Control'=>'max-age='.$this->cacheTime
+                    //'Last-Modified'=>$lastTime,'Etag'=>md5($fileTime.$file), 'data'=>$lastTime, 'Cache-Control'=>'max-age='.$this->cacheTime
                     $this->setHeader(200, ['Content-type'=>$connect_type,  'data'=>$lastTime]);
-					if(isset($this->files[$file])){
+                    if (isset($this->files[$file])) {
                         $filesize = $this->files[$file];
-                    }else{
-						$filesize = filesize($file);
-					}
-					// 常规的循环读取
+                    } else {
+                        $filesize = filesize($file);
+                    }
+                    // 常规的循环读取
                     foreach ($this->readTheFile($file) as $data) {
                         $this->send($data, $filesize);
                     }
                 }
                 $type = null;
-				// 如果大于1000的文件，就重新搞
-				if(count($this->files)>1000){
-					$this->files = [];
-				}
-				return true;
+                // 如果大于1000的文件，就重新搞
+                if (count($this->files)>1000) {
+                    $this->files = [];
+                }
+                return true;
             }
-			return false;
+            return false;
         }
         return false;
     }

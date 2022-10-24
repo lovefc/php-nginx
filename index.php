@@ -8,10 +8,6 @@
 define("PATH", __DIR__);
 
 require(PATH.'/require.php');
-//print_r(get_defined_vars());
-
-//\FC\App::config();
-//print_r($_SERVER);
 
 \FC\App::run();
 // 在linux系统中 可以使用$_SERVER['_']来获取php执行文件的位置

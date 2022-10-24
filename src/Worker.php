@@ -82,9 +82,9 @@ class Worker
         $errmsg = '';
         $this->socket = stream_socket_server($local_text, $errno, $errmsg, $flags, $context);
         if (!is_resource($this->socket)) {
-            //echo "{$local_socket} 创建成功" . PHP_EOL;
+            // echo "{$local_socket} 创建成功" . PHP_EOL;
             //} else {
-            die("{$local_socket} Creation failed.") . PHP_EOL;
+            die("{$local_socket} 创建失败.") . PHP_EOL;
         }
 
         // ssl 先不进行加密
