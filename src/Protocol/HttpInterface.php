@@ -71,11 +71,12 @@ abstract class HttpInterface
     }
 
     // 设置系统参数
-    public function setEnv($server_name){
+    public function setEnv($server_name)
+    {
         $this->documentRoot = \FC\NginxConf::$Configs[$server_name]['root'][0] ?? null;
-        $this->defaultIndex = \FC\NginxConf::$Configs[$server_name]['index'] ?? [];	
+        $this->defaultIndex = \FC\NginxConf::$Configs[$server_name]['index'] ?? [];
         $_SERVER['DOCUMENT_ROOT'] = $this->documentRoot;
-	}
+    }
 
     // 连接
     public function _onConnect($server)
@@ -91,7 +92,7 @@ abstract class HttpInterface
         $this->fd = $fd;
         $this->init();
         if ($this->handleData($data)) {
-			$this->setEnv($_SERVER['Host']);
+            $this->setEnv($_SERVER['Host']);
             $status = $this->staticDir($_SERVER['QUERY']);
             if (!$status) {
                 /*
@@ -101,8 +102,8 @@ abstract class HttpInterface
             }
         }
     }
-    
-	// 错误页面
+
+    // 错误页面
     public function page404()
     {
         $data = '<html><head><title>404 Not Found</title></head><body><center><h1>404 Not Found</h1></center><hr><center>php-nginx/0.01</center></body></html>';
@@ -197,7 +198,7 @@ abstract class HttpInterface
                 $head[trim($head2[0])] = trim($v2);
             }
             $_SERVER = array_merge($_SERVER, $head);
-            $_SERVER['DOCUMENT_ROOT'] = $this->documentRoot ?? getcwd();
+            //$_SERVER['DOCUMENT_ROOT'] = $this->documentRoot ?? getcwd();
             $_SERVER['METHOD'] = $method;
             $_SERVER['QUERY'] = $query;
             $head = $head2 = '';
@@ -252,6 +253,15 @@ abstract class HttpInterface
             $type = $this->types;
             $ext = $this->getExt($file);
             $connect_type = $type[$ext] ?? null;
+			/*
+            if ($connect_type == 'application/x-httpd-php') {
+				$php_path = \FC\App::getPhpPath();
+				$command = $php_path.' -f '.$file;
+				$data = \FC\App::realCmd($command);
+				$this->send($data);
+				return true;
+            }
+			*/
             if ($connect_type) {
                 // 获取文件修改时间
                 $fileTime = date('r', filemtime($file));

@@ -2,7 +2,7 @@
 /*
  * @Author       : lovefc
  * @Date         : 2022-09-03 02:11:36
- * @LastEditTime : 2022-10-25 02:00:33
+ * @LastEditTime : 2022-10-25 11:03:22
  */
 
 namespace FC;
@@ -10,6 +10,7 @@ namespace FC;
 class App
 {
     //public static $is_win = (PATH_SEPARATOR == ';') ? true : false
+    public static $phpPath;
     // 获取php文件位置
     public static function getPhpPath()
     {
@@ -79,17 +80,31 @@ class App
             }
         }
     }
+	
+	//调用命令获取输出
+    public static function realCmd($command)
+    {
+        $handle = popen($command, 'r');
+        $data = null;
+        while (!feof($handle)) {
+            $data .= fread($handle,1024);
+        }
+        pclose($handle);
+        return $data;
+    }
 
     public static function run()
     {
         \FC\NginxConf::readConf(PATH.'/conf/vhosts');
         //print_r(NginxConf::$Configs);
+		$php_path = self::getPhpPath();
+		echo $php_path;
         foreach (\FC\NginxConf::$Configs as $k=>$v) {
             $server_name = $k;
             $cert = $v['ssl_certificate'][0] ?? '';
             $key = $v['ssl_certificate_key'][0] ?? '';
             foreach ($v['listen'] as $port) {
-                $php_path = self::getPhpPath();
+                self::$phpPath = $php_path;
                 $cmd = $php_path.' '.PATH.'/app.php -h '.$server_name.' -p '.$port.' &';
                 self::execCmd($cmd);
             }
