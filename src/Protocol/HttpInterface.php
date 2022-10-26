@@ -94,7 +94,6 @@ abstract class HttpInterface
         if ($this->handleData($data)) {
             $this->setEnv($_SERVER['Host']);
             $file = $this->getDefaultIndex($_SERVER['QUERY']);
-			echo $file.PHP_EOL;
             $status = $this->staticDir($file);
             if (!$status) {
                 /*
@@ -122,6 +121,12 @@ abstract class HttpInterface
         if (!is_dir($dir)) {
             return false;
         }
+		// 这里是解决访问不带/的目录出错的问题
+		if(substr($dir, -1)!='/'){
+			$_SERVER['QUERY'] = $_SERVER['QUERY'].'/';
+			$this->sendCode('302',['Location'=>$_SERVER['QUERY']]);
+			return true;
+		}
         $handler = opendir($dir);
         $files = $dirs = [];
         while (($filename = readdir($handler)) !== false) {
@@ -150,6 +155,7 @@ abstract class HttpInterface
         foreach ($files as  $value) {
             $html .="<a href=\"./{$value}\">{$value}</a> <br />";
         }
+		$this->setHeader(200, ['Content-Type'=>'text/html;charset=UTF-8']);
         $this->send($html);
         return true;
     }
@@ -185,7 +191,7 @@ abstract class HttpInterface
     }
 
     // 发送消息
-    public function send(string $data, $bodylen=0)
+    public function send($data, $bodylen=0)
     {
         $response = '';
         if (isset($this->headers['Content-Encoding'])  && $this->headers['Content-Encoding'] == 'gzip') {
@@ -203,10 +209,9 @@ abstract class HttpInterface
     }
 
     // 发送状态码
-    public function sendCode(string $code)
+    public function sendCode($code,$headers=[])
     {
-        $response = $this->separator;
-        $response = $this->protocolHeader . " ". $this->getHttpCode($code) . $this->separator.$this->separator;
+		$response =  $this->_getHeader($code, $headers);
         $response = stripcslashes($response);
         $this->server->send($this->fd, $response);
     }
