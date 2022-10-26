@@ -93,12 +93,17 @@ abstract class HttpInterface
         $this->init();
         if ($this->handleData($data)) {
             $this->setEnv($_SERVER['Host']);
-            $status = $this->staticDir($_SERVER['QUERY']);
+            $file = $this->getDefaultIndex($_SERVER['QUERY']);
+			echo $file.PHP_EOL;
+            $status = $this->staticDir($file);
             if (!$status) {
                 /*
                 is_callable($this->onMessage) && call_user_func_array($this->onMessage, [$this, $data]);
                 */
-                $this->page404();
+                $status = $this->autoIndex($file);
+                if ($status==false) {
+                    $this->page404();
+                }
             }
         }
     }
@@ -109,6 +114,44 @@ abstract class HttpInterface
         $data = '<html><head><title>404 Not Found</title></head><body><center><h1>404 Not Found</h1></center><hr><center>php-nginx/0.01</center></body></html>';
         $this->setHeader(404);
         $this->send($data);
+    }
+
+    // 目录索引
+    public function autoIndex($dir)
+    {
+        if (!is_dir($dir)) {
+            return false;
+        }
+        $handler = opendir($dir);
+        $files = $dirs = [];
+        while (($filename = readdir($handler)) !== false) {
+            // 务必使用!==，防止目录下出现类似文件名“0”等情况
+            if ($filename !== "." && $filename !== "..") {
+                $path = $dir.DIRECTORY_SEPARATOR.$filename;
+                if (is_file($path)) {
+                    $files[] = $filename;
+                }
+                if (is_dir($path)) {
+                    $dirs[] = $filename."/";
+                }
+            }
+        }
+        //print_r($files);
+        //print_r($dirs);
+        closedir($handler);
+        $html = '<html><head><title>Index of /</title></head><body><h1>Index of '.basename($_SERVER['QUERY']).'</h1><hr><pre><a href="../">../</a><br />';
+        // 打印所有文件名
+        foreach ($dirs as  $value) {
+            //echo $value, PHP_EOL;
+            $html .= "<a href=\"./{$value}\">{$value}</a><br />";
+            //getTab("<a href=\"{$value}\">{$value}</a>","21-Aug-2021 15:58   -");
+        }
+        // 打印所有文件名
+        foreach ($files as  $value) {
+            $html .="<a href=\"./{$value}\">{$value}</a> <br />";
+        }
+        $this->send($html);
+        return true;
     }
 
     // 关闭
@@ -229,10 +272,11 @@ abstract class HttpInterface
     {
         $arr = parse_url($query);
         $path =  $arr['path'] ?? '';
+		$_SERVER['PHP_SELF'] = $path;
         $query2 = $arr['query'] ?? '';
         if ($path == '/') {
             foreach ($this->defaultIndex as $index) {
-                $file = $this->documentRoot.'/'.$index;
+                $file = $this->documentRoot.DIRECTORY_SEPARATOR.$index;
                 if (is_file($file)) {
                     $_SERVER['QUERY'] = $index."?{$query2}";
                     return $file;
@@ -243,9 +287,8 @@ abstract class HttpInterface
     }
 
     // 静态目录绑定
-    public function staticDir($query)
+    public function staticDir($file)
     {
-        $file = $this->getDefaultIndex($query);
         if (isset($this->files[$file]) || is_file($file)) {
             if (empty($this->types)) {
                 $this->types = include(__DIR__.'/Type.php');
@@ -253,15 +296,16 @@ abstract class HttpInterface
             $type = $this->types;
             $ext = $this->getExt($file);
             $connect_type = $type[$ext] ?? null;
-			/*
+            /*
             if ($connect_type == 'application/x-httpd-php') {
-				$php_path = \FC\App::getPhpPath();
-				$command = $php_path.' -f '.$file;
-				$data = \FC\App::realCmd($command);
-				$this->send($data);
-				return true;
+                $php_path = \FC\App::getPhpPath();
+                $command = $php_path.' -f '.$file;
+                $data = \FC\App::realCmd($command);
+                $this->send($data);
+                return true;
             }
-			*/
+            */
+			$lastTime = date('r');
             if ($connect_type) {
                 // 获取文件修改时间
                 $fileTime = date('r', filemtime($file));
@@ -283,19 +327,21 @@ abstract class HttpInterface
                         $is_cache = 1;
                     }
                 }
-                if ($is_cache == 0) {
-                    $lastTime = date('r');
-                    //'Last-Modified'=>$lastTime,'Etag'=>md5($fileTime.$file), 'data'=>$lastTime, 'Cache-Control'=>'max-age='.$this->cacheTime
-                    $this->setHeader(200, ['Content-type'=>$connect_type,  'data'=>$lastTime]);
-                    if (isset($this->files[$file])) {
-                        $filesize = $this->files[$file];
-                    } else {
-                        $filesize = filesize($file);
-                    }
-                    // 常规的循环读取
-                    foreach ($this->readTheFile($file) as $data) {
-                        $this->send($data, $filesize);
-                    }
+                $this->setHeader(200, ['Content-type'=>$connect_type,  'data'=>$lastTime]);
+            } else {
+                $this->setHeader(200, ["Content-Type"=>"application/octet-stream","Content-Transfer-Encoding"=>"Binary","Content-disposition"=>"attachment","filename"=>basename($file)]);
+            }
+            if ($is_cache == 0) {
+
+                //'Last-Modified'=>$lastTime,'Etag'=>md5($fileTime.$file), 'data'=>$lastTime, 'Cache-Control'=>'max-age='.$this->cacheTime
+                if (isset($this->files[$file])) {
+                    $filesize = $this->files[$file];
+                } else {
+                    $filesize = filesize($file);
+                }
+                // 常规的循环读取
+                foreach ($this->readTheFile($file) as $data) {
+                    $this->send($data, $filesize);
                 }
                 $type = null;
                 // 如果大于1000的文件，就重新搞
@@ -304,7 +350,6 @@ abstract class HttpInterface
                 }
                 return true;
             }
-            return false;
         }
         return false;
     }

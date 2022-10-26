@@ -8,11 +8,12 @@
 define("PATH", __DIR__);
 
 require(PATH.'/require.php');
-
+/*
 function isFastCGI () {
     return !is_null($_SERVER['FCGI_SERVER_VERSION']);
 }
 var_dump(isFastCGI());
+*/
 //\FC\NginxConf::readConf(PATH.'/conf/vhosts');
 //echo \FC\App::config();
 

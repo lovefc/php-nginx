@@ -11,3 +11,6 @@ kill -9 $id
 echo "killed $id"
 done
 echo "---------------"
+
+#关掉fpm
+kill -INT `cat /run/php7.4-fpm.pid`

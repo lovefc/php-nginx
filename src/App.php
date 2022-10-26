@@ -98,7 +98,7 @@ class App
         \FC\NginxConf::readConf(PATH.'/conf/vhosts');
         //print_r(NginxConf::$Configs);
 		$php_path = self::getPhpPath();
-		echo $php_path;
+		//echo $php_path;
         foreach (\FC\NginxConf::$Configs as $k=>$v) {
             $server_name = $k;
             $cert = $v['ssl_certificate'][0] ?? '';

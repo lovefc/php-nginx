@@ -32,7 +32,7 @@ class NginxConf
             '127.0.0.1' => [
                 'listen' => [80],
                 'server_name' => ['127.0.0.1'],
-                'root' => [$dir.'/html'],
+                'root' => [$dir.DIRECTORY_SEPARATOR.'html'],
                 'index' => ['index.html','index.htm']
             ]
         ];
