@@ -2,15 +2,18 @@
 
 NAME=$1
 #echo $NAME
-ID=`ps -ef | grep "$NAME" | grep -v "$0" | grep -v "grep" | awk '{print $2}'`
+ID=`ps -ef | grep "$NAME" | grep -v "grep" | awk '{print $2}'`
+
+echo $ID
+
 #echo $ID
-echo "---------------"
+#echo "---------------"
 for id in $ID
 do
 kill -9 $id
-echo "killed $id"
+#echo "killed $id"
 done
-echo "---------------"
+#echo "---------------"
 
 #关掉fpm
 kill -INT `cat /run/php7.4-fpm.pid`

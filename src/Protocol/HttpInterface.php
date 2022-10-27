@@ -42,6 +42,8 @@ abstract class HttpInterface
     public $documentRoot = null; // 主目录
 
     public $defaultIndex = []; // 默认索引文件
+	
+	public $requestScheme = null; // http|https
 
     // 事件
     private $events = [
@@ -76,6 +78,16 @@ abstract class HttpInterface
         $this->documentRoot = \FC\NginxConf::$Configs[$server_name]['root'][0] ?? null;
         $this->defaultIndex = \FC\NginxConf::$Configs[$server_name]['index'] ?? [];
         $_SERVER['DOCUMENT_ROOT'] = $this->documentRoot;
+		$_SERVER['REQUEST_SCHEME'] = $this->requestScheme;
+        $_SERVER['HTTP_HOST'] = $server_name;
+        $_SERVER['SERVER_NAME'] = $server_name;
+		$_SERVER['SERVER_PORT'] = '';// 端口
+        $_SERVER['SERVER_SOFTWARE'] = 'php-nginx/0.01';		
+		/*
+		    [REMOTE_PORT] => 65414
+            [REMOTE_ADDR] => 127.0.0.1 
+			用户ip和端口
+		*/
     }
 
     // 连接
@@ -91,6 +103,7 @@ abstract class HttpInterface
     {
         $this->fd = $fd;
         $this->init();
+		//echo $data.PHP_EOL;
         if ($this->handleData($data)) {
             $this->setEnv($_SERVER['Host']);
             $file = $this->getDefaultIndex($_SERVER['QUERY']);
@@ -155,6 +168,7 @@ abstract class HttpInterface
         foreach ($files as  $value) {
             $html .="<a href=\"./{$value}\">{$value}</a> <br />";
         }
+		$html .= '</body></html>';
 		$this->setHeader(200, ['Content-Type'=>'text/html;charset=UTF-8']);
         $this->send($html);
         return true;
@@ -247,8 +261,9 @@ abstract class HttpInterface
             }
             $_SERVER = array_merge($_SERVER, $head);
             //$_SERVER['DOCUMENT_ROOT'] = $this->documentRoot ?? getcwd();
-            $_SERVER['METHOD'] = $method;
-            $_SERVER['QUERY'] = $query;
+            $_SERVER['METHOD'] = $_SERVER['REQUEST_METHOD'] = $method;
+            $_SERVER['QUERY'] = $_SERVER['REQUEST_URI'] = $query;
+			$_SERVER['QUERY_STRING'] = '';
             $head = $head2 = '';
             return true;
         }

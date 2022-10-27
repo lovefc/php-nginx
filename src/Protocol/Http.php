@@ -17,6 +17,7 @@ class Http extends HttpInterface
         $this->server->on('close', [$this,"_onClose"]);
         /** 初始默认 **/
         $this->init();
+		$this->requestScheme = 'http';
     }
 
     public function socketAccept($server)

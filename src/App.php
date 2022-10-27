@@ -161,12 +161,42 @@ class App
     }
 
         // 重启
-    public static function restart()
+    public static function reStart()
     {
+		self::stop();
+		self::run();
+		
     }
-
-        // 停止
+	
+    public static function linuxStop()
+    {
+		$name = 'php.nginx';
+	    $linux_cmd = "ps -ef | grep '$name' | grep -v 'grep' | awk '{print \$2}'";
+		$output = shell_exec($linux_cmd);
+		if(empty($output)) return 'Please start php-nginx first!';
+		$arr = explode(PHP_EOL,$output);
+		$s = array_filter($arr);
+		foreach($arr as $pid){
+		    shell_exec("kill -9 {$pid} 2>&1");
+		}
+		return 'PHP-NGINX Stoping....';
+    }
+	
+	public static function winStop(){
+		$win_cmd = 'taskkill /T /F /im php.exe';
+		system($win_cmd);
+		return 'PHP-NGINX Stoping....';
+	}
+	
+    // 停止
     public static function stop()
     {
+		if(IS_WIN == false){
+			return self::linuxStop();
+		}else{
+			echo 111;
+			return self::winStop();
+		}
     }
+	
 }

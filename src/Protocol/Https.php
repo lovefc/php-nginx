@@ -17,6 +17,7 @@ class Https extends HttpInterface
         $this->server->on('close', [$this,"_onClose"]);
         /** 初始默认 **/
         $this->init();
+		$this->requestScheme = 'https';
     }
 
     // https解密
