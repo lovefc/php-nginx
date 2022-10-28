@@ -23,6 +23,9 @@ class NginxConf
       "gzip",
       "gzip_types",
       "gzip_comp_level",
+	  'autoindex',
+	  'autoindex_exact_size',
+	  'autoindex_localtime'
     ];
 
     public static function defaultConf()

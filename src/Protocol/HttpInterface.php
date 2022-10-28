@@ -44,6 +44,8 @@ abstract class HttpInterface
     public $defaultIndex = []; // 默认索引文件
 	
 	public $requestScheme = null; // http|https
+	
+	public $displayCatalogue = false;
 
     // 事件
     private $events = [
@@ -77,6 +79,7 @@ abstract class HttpInterface
     {
         $this->documentRoot = \FC\NginxConf::$Configs[$server_name]['root'][0] ?? null;
         $this->defaultIndex = \FC\NginxConf::$Configs[$server_name]['index'] ?? [];
+		$this->displayCatalogue = \FC\NginxConf::$Configs[$server_name]['autoindex'][0] ?? 'off';
         $_SERVER['DOCUMENT_ROOT'] = $this->documentRoot;
 		$_SERVER['REQUEST_SCHEME'] = $this->requestScheme;
         $_SERVER['HTTP_HOST'] = $server_name;
@@ -103,7 +106,6 @@ abstract class HttpInterface
     {
         $this->fd = $fd;
         $this->init();
-		//echo $data.PHP_EOL;
         if ($this->handleData($data)) {
             $this->setEnv($_SERVER['Host']);
             $file = $this->getDefaultIndex($_SERVER['QUERY']);
@@ -112,7 +114,7 @@ abstract class HttpInterface
                 /*
                 is_callable($this->onMessage) && call_user_func_array($this->onMessage, [$this, $data]);
                 */
-                $status = $this->autoIndex($file);
+                $status = ($this->displayCatalogue=='on') ? $this->autoIndex($file) : false;
                 if ($status==false) {
                     $this->page404();
                 }
@@ -143,7 +145,6 @@ abstract class HttpInterface
         $handler = opendir($dir);
         $files = $dirs = [];
         while (($filename = readdir($handler)) !== false) {
-            // 务必使用!==，防止目录下出现类似文件名“0”等情况
             if ($filename !== "." && $filename !== "..") {
                 $path = $dir.DIRECTORY_SEPARATOR.$filename;
                 if (is_file($path)) {

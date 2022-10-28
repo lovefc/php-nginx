@@ -67,13 +67,15 @@ class App
         return $php_ini;
     }
 
-    public static function execCmd($cmd)
+    public static function execCmd($cmd,$cmd2)
     {
         if (substr(php_uname(), 0, 7) == "Windows") {
-            pclose(popen("start /B ".$cmd, "r"));
+			$cmd = "start {$cmd}";
+            pclose(popen($cmd, "r"));
             sleep(1);
         } else {
             $cwd = $env = null;
+			$cmd .= ' &';
             $process = proc_open($cmd, [], $pipes, $cwd, $env);
             if (is_resource($process)) {
                 proc_close($process);
@@ -105,14 +107,15 @@ class App
             $key = $v['ssl_certificate_key'][0] ?? '';
             foreach ($v['listen'] as $port) {
                 self::$phpPath = $php_path;
-                $cmd = $php_path.' '.PATH.'/app.php -h '.$server_name.' -p '.$port.' &';
-                self::execCmd($cmd);
+                $cmd = $php_path.' '.PATH.'/app.php -h '.$server_name.' -p '.$port;
+				$cmd2 = 'Start-Process '.$php_path.' -ArgumentList "'.PATH.'/app.php -h '.$server_name.' -p '.$port;
+                self::execCmd($cmd,$cmd2);
             }
         }
     }
+
     public static function work($server_name, $port)
     {
-        \FC\NginxConf::readConf(PATH.'/conf/vhosts');
         $process_title = "php.nginx-{$server_name}";//PHP 5.5.0
         cli_set_process_title($process_title);
         $cert = NginxConf::$Configs[$server_name]['ssl_certificate'][0] ?? null;
@@ -157,6 +160,7 @@ class App
         $server_name = isset($arg['h']) ? $arg['h'] : '127.0.0.1';
         $port = isset($arg['p']) ? $arg['p'] : '80';
         (!$server_name || !$port) && die('执行失败');
+		\FC\NginxConf::readConf(PATH.'/conf/vhosts');
         self::work($server_name, $port);
     }
 
@@ -183,7 +187,7 @@ class App
     }
 	
 	public static function winStop(){
-		$win_cmd = 'taskkill /T /F /im php.exe';
+		$win_cmd = 'taskkill /T /F /im php.exe 2>NUL 1>NUL';
 		system($win_cmd);
 		return 'PHP-NGINX Stoping....';
 	}
@@ -194,7 +198,6 @@ class App
 		if(IS_WIN == false){
 			return self::linuxStop();
 		}else{
-			echo 111;
 			return self::winStop();
 		}
     }
