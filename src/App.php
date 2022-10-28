@@ -67,10 +67,12 @@ class App
         return $php_ini;
     }
 
-    public static function execCmd($cmd)
+    public static function execCmd($cmd,$cmd2)
     {
         if (substr(php_uname(), 0, 7) == "Windows") {
-            pclose(popen("start /B ".$cmd, "r"));
+			$cmd = "start /B {$cmd}";
+			echo $cmd.PHP_EOL;
+            pclose(popen($cmd, "r"));
             sleep(1);
         } else {
             $cwd = $env = null;
@@ -105,8 +107,9 @@ class App
             $key = $v['ssl_certificate_key'][0] ?? '';
             foreach ($v['listen'] as $port) {
                 self::$phpPath = $php_path;
-                $cmd = $php_path.' '.PATH.'/app.php -h '.$server_name.' -p '.$port.' &';
-                self::execCmd($cmd);
+                $cmd = $php_path.' '.PATH.'/app.php -h '.$server_name.' -p '.$port;
+				$cmd2 = 'Start-Process '.$php_path.' -ArgumentList "'.PATH.'/app.php -h '.$server_name.' -p '.$port;
+                self::execCmd($cmd,$cmd2);
             }
         }
     }

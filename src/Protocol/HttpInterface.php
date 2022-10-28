@@ -103,7 +103,6 @@ abstract class HttpInterface
     {
         $this->fd = $fd;
         $this->init();
-		//echo $data.PHP_EOL;
         if ($this->handleData($data)) {
             $this->setEnv($_SERVER['Host']);
             $file = $this->getDefaultIndex($_SERVER['QUERY']);
@@ -131,6 +130,7 @@ abstract class HttpInterface
     // 目录索引
     public function autoIndex($dir)
     {
+		echo $dir.PHP_EOL;
         if (!is_dir($dir)) {
             return false;
         }
@@ -143,7 +143,6 @@ abstract class HttpInterface
         $handler = opendir($dir);
         $files = $dirs = [];
         while (($filename = readdir($handler)) !== false) {
-            // 务必使用!==，防止目录下出现类似文件名“0”等情况
             if ($filename !== "." && $filename !== "..") {
                 $path = $dir.DIRECTORY_SEPARATOR.$filename;
                 if (is_file($path)) {
