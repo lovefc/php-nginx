@@ -133,7 +133,6 @@ abstract class HttpInterface
     // 目录索引
     public function autoIndex($dir)
     {
-		echo $dir.PHP_EOL;
         if (!is_dir($dir)) {
             return false;
         }
@@ -328,11 +327,11 @@ abstract class HttpInterface
             }
             */
 			$lastTime = date('r');
+			$is_cache = 0;
             if ($connect_type) {
                 // 获取文件修改时间
                 $fileTime = date('r', filemtime($file));
                 $since = $_SERVER['If-Modified-Since'] ?? null;
-                $is_cache = 0;
                 if ($since) {
                     $sinceTime = strtotime($since);
                     // 如果设置了缓存时间
