@@ -46,6 +46,12 @@ abstract class HttpInterface
 	public $requestScheme = null; // http|https
 	
 	public $displayCatalogue = false;
+	
+	public $gzip = false; 
+	
+	public $gzipTypes = [];
+	
+	public $gzipCompLevel = 0; // 压缩等级
 
     // 事件
     private $events = [
@@ -63,7 +69,6 @@ abstract class HttpInterface
         $this->headers = [
            'Content-Type'=>'text/html;charset=UTF-8',
            'Connection'=>'keep-alive',
-           //'Content-Encoding'=>'gzip',
         ];
         $this->bodyLen = 0;
     }
@@ -80,6 +85,12 @@ abstract class HttpInterface
         $this->documentRoot = \FC\NginxConf::$Configs[$server_name]['root'][0] ?? null;
         $this->defaultIndex = \FC\NginxConf::$Configs[$server_name]['index'] ?? [];
 		$this->displayCatalogue = \FC\NginxConf::$Configs[$server_name]['autoindex'][0] ?? 'off';
+		$this->gzip = \FC\NginxConf::$Configs[$server_name]['gzip'][0] ?? 'off';
+        $this->gzipCompLevel = \FC\NginxConf::$Configs[$server_name]['gzip_comp_level'][0] ?? 2;
+        $this->gzipTypes = \FC\NginxConf::$Configs[$server_name]['gzip_types'] ?? [];
+		//print_r($this->gzipTypes);
+		//echo $this->gzipCompLevel.PHP_EOL;
+		//echo $this->gzip.PHP_EOL;
         $_SERVER['DOCUMENT_ROOT'] = $this->documentRoot;
 		$_SERVER['REQUEST_SCHEME'] = $this->requestScheme;
         $_SERVER['HTTP_HOST'] = $server_name;
@@ -108,7 +119,8 @@ abstract class HttpInterface
         $this->init();
         if ($this->handleData($data)) {
             $this->setEnv($_SERVER['Host']);
-            $file = $this->getDefaultIndex($_SERVER['QUERY']);
+			$query = iconv('UTF-8','GB2312',$_SERVER['QUERY']);
+            $file = $this->getDefaultIndex($query);
             $status = $this->staticDir($file);
             if (!$status) {
                 /*
@@ -209,16 +221,16 @@ abstract class HttpInterface
     public function send($data, $bodylen=0)
     {
         $response = '';
-        if (isset($this->headers['Content-Encoding'])  && $this->headers['Content-Encoding'] == 'gzip') {
-            $data = \gzencode($data);
-        }
+		if (isset($this->headers['Content-Encoding'])  && $this->headers['Content-Encoding'] == 'gzip') {
+           $data = \gzencode($data);
+        }				
         $len = strlen($data);
         if ($this->bodyLen == 0) {
             $this->bodyLen = ($bodylen!= 0) ? $bodylen : $len;
             $response =  $this->_getHeader($this->headerCode, $this->headers);
             $response = stripcslashes($response);
         }
-        $response .= $data;
+        $response .= $data;	
         $this->server->send($this->fd, $response);
         $response = '';
     }
@@ -263,7 +275,7 @@ abstract class HttpInterface
             $_SERVER = array_merge($_SERVER, $head);
             //$_SERVER['DOCUMENT_ROOT'] = $this->documentRoot ?? getcwd();
             $_SERVER['METHOD'] = $_SERVER['REQUEST_METHOD'] = $method;
-            $_SERVER['QUERY'] = $_SERVER['REQUEST_URI'] = $query;
+            $_SERVER['QUERY'] = $_SERVER['REQUEST_URI'] = urldecode($query);
 			$_SERVER['QUERY_STRING'] = '';
             $head = $head2 = '';
             return true;
@@ -348,9 +360,14 @@ abstract class HttpInterface
                         $is_cache = 1;
                     }
                 }
-                $this->setHeader(200, ['Content-type'=>$connect_type,  'data'=>$lastTime]);
+				$headers = ['Content-type'=>$connect_type,  'data'=>$lastTime];
+				if($this->gzip == 'on' && in_array($connect_type,$this->gzipTypes)){
+					$headers['Content-Encoding']='gzip';//deflate';
+				}
+                $this->setHeader(200, $headers);				
             } else {
-                $this->setHeader(200, ["Content-Type"=>"application/octet-stream","Content-Transfer-Encoding"=>"Binary","Content-disposition"=>"attachment","filename"=>basename($file)]);
+				$headers = ["Content-Type"=>"application/octet-stream","Content-Transfer-Encoding"=>"Binary","Content-disposition"=>"attachment","filename"=>basename($file)];
+				$this->setHeader(200, $headers);
             }
             if ($is_cache == 0) {
 
