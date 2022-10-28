@@ -133,6 +133,7 @@ abstract class HttpInterface
     // 目录索引
     public function autoIndex($dir)
     {
+		echo $dir.PHP_EOL;
         if (!is_dir($dir)) {
             return false;
         }
