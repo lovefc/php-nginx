@@ -42,16 +42,16 @@ abstract class HttpInterface
     public $documentRoot = null; // 主目录
 
     public $defaultIndex = []; // 默认索引文件
-	
-	public $requestScheme = null; // http|https
-	
-	public $displayCatalogue = false;
-	
-	public $gzip = false; 
-	
-	public $gzipTypes = [];
-	
-	public $gzipCompLevel = 0; // 压缩等级
+
+    public $requestScheme = null; // http|https
+
+    public $displayCatalogue = false;
+
+    public $gzip = false;
+
+    public $gzipTypes = [];
+
+    public $gzipCompLevel = 0; // 压缩等级
 
     // 事件
     private $events = [
@@ -67,7 +67,7 @@ abstract class HttpInterface
         $this->protocolHeader = 'HTTP/1.1';
         $this->separator = '\r\n';
         $this->headers = [
-           'Content-Type'=>'text/html;charset=UTF-8',
+           'Content-Type'=>'text/html',
            'Connection'=>'keep-alive',
         ];
         $this->bodyLen = 0;
@@ -84,24 +84,24 @@ abstract class HttpInterface
     {
         $this->documentRoot = \FC\NginxConf::$Configs[$server_name]['root'][0] ?? null;
         $this->defaultIndex = \FC\NginxConf::$Configs[$server_name]['index'] ?? [];
-		$this->displayCatalogue = \FC\NginxConf::$Configs[$server_name]['autoindex'][0] ?? 'off';
-		$this->gzip = \FC\NginxConf::$Configs[$server_name]['gzip'][0] ?? 'off';
+        $this->displayCatalogue = \FC\NginxConf::$Configs[$server_name]['autoindex'][0] ?? 'off';
+        $this->gzip = \FC\NginxConf::$Configs[$server_name]['gzip'][0] ?? 'off';
         $this->gzipCompLevel = \FC\NginxConf::$Configs[$server_name]['gzip_comp_level'][0] ?? 2;
         $this->gzipTypes = \FC\NginxConf::$Configs[$server_name]['gzip_types'] ?? [];
-		//print_r($this->gzipTypes);
-		//echo $this->gzipCompLevel.PHP_EOL;
-		//echo $this->gzip.PHP_EOL;
+        //print_r($this->gzipTypes);
+        //echo $this->gzipCompLevel.PHP_EOL;
+        //echo $this->gzip.PHP_EOL;
         $_SERVER['DOCUMENT_ROOT'] = $this->documentRoot;
-		$_SERVER['REQUEST_SCHEME'] = $this->requestScheme;
+        $_SERVER['REQUEST_SCHEME'] = $this->requestScheme;
         $_SERVER['HTTP_HOST'] = $server_name;
         $_SERVER['SERVER_NAME'] = $server_name;
-		$_SERVER['SERVER_PORT'] = '';// 端口
-        $_SERVER['SERVER_SOFTWARE'] = 'php-nginx/0.01';		
-		/*
-		    [REMOTE_PORT] => 65414
-            [REMOTE_ADDR] => 127.0.0.1 
-			用户ip和端口
-		*/
+        $_SERVER['SERVER_PORT'] = '';// 端口
+        $_SERVER['SERVER_SOFTWARE'] = 'php-nginx/0.01';
+        /*
+            [REMOTE_PORT] => 65414
+            [REMOTE_ADDR] => 127.0.0.1
+            用户ip和端口
+        */
     }
 
     // 连接
@@ -119,7 +119,7 @@ abstract class HttpInterface
         $this->init();
         if ($this->handleData($data)) {
             $this->setEnv($_SERVER['Host']);
-			$query = iconv('UTF-8','GB2312',$_SERVER['QUERY']);
+            $query = iconv('UTF-8', 'GB2312', $_SERVER['QUERY']);
             $file = $this->getDefaultIndex($query);
             $status = $this->staticDir($file);
             if (!$status) {
@@ -148,12 +148,12 @@ abstract class HttpInterface
         if (!is_dir($dir)) {
             return false;
         }
-		// 这里是解决访问不带/的目录出错的问题
-		if(substr($dir, -1)!='/'){
-			$_SERVER['QUERY'] = $_SERVER['QUERY'].'/';
-			$this->sendCode('302',['Location'=>$_SERVER['QUERY']]);
-			return true;
-		}
+        // 这里是解决访问不带/的目录出错的问题
+        if (substr($dir, -1)!='/') {
+            $_SERVER['QUERY'] = $_SERVER['QUERY'].'/';
+            $this->sendCode('302', ['Location'=>$_SERVER['QUERY']]);
+            return true;
+        }
         $handler = opendir($dir);
         $files = $dirs = [];
         while (($filename = readdir($handler)) !== false) {
@@ -170,7 +170,7 @@ abstract class HttpInterface
         //print_r($files);
         //print_r($dirs);
         closedir($handler);
-        $html = '<html><head><title>Index of /</title></head><body><h1>Index of '.basename($_SERVER['QUERY']).'</h1><hr><pre><a href="../">../</a><br />';
+        $html = '<html><head><title>Index of /</title></head><body><h1>Index of '.$_SERVER['QUERY'].'</h1><hr><pre><a href="../">../</a><br />';
         // 打印所有文件名
         foreach ($dirs as  $value) {
             //echo $value, PHP_EOL;
@@ -181,8 +181,8 @@ abstract class HttpInterface
         foreach ($files as  $value) {
             $html .="<a href=\"./{$value}\">{$value}</a> <br />";
         }
-		$html .= '</body></html>';
-		$this->setHeader(200, ['Content-Type'=>'text/html;charset=UTF-8']);
+        $html .= '</body></html>';
+        $this->setHeader(200, ['Content-Type'=>'text/html']);
         $this->send($html);
         return true;
     }
@@ -200,11 +200,16 @@ abstract class HttpInterface
         $response = '';
         if (is_array($header) && count($header) > 0) {
             foreach ($header as $k=>$v) {
-                $response .= "{$k}:{$v}".$this->separator;
+                if ($k=='Content-Type') {
+                    $response .= "{$k}:{$v};charset=UTF-8".$this->separator;
+                } else {
+                    $response .= "{$k}:{$v}".$this->separator;
+                }
             }
         }
         $response .= "Content-length:".$this->bodyLen.$this->separator;
         $response .= $this->separator;
+        //echo $response.PHP_EOL;
         return $this->protocolHeader . " ". $this->getHttpCode($code) . $this->separator . $response;
     }
 
@@ -221,24 +226,24 @@ abstract class HttpInterface
     public function send($data, $bodylen=0)
     {
         $response = '';
-		if (isset($this->headers['Content-Encoding'])  && $this->headers['Content-Encoding'] == 'gzip') {
-           $data = \gzencode($data);
-        }				
+        if (isset($this->headers['Content-Encoding'])  && $this->headers['Content-Encoding'] == 'gzip') {
+            $data = \gzencode($data);
+        }
         $len = strlen($data);
         if ($this->bodyLen == 0) {
             $this->bodyLen = ($bodylen!= 0) ? $bodylen : $len;
             $response =  $this->_getHeader($this->headerCode, $this->headers);
             $response = stripcslashes($response);
         }
-        $response .= $data;	
+        $response .= $data;
         $this->server->send($this->fd, $response);
         $response = '';
     }
 
     // 发送状态码
-    public function sendCode($code,$headers=[])
+    public function sendCode($code, $headers=[])
     {
-		$response =  $this->_getHeader($code, $headers);
+        $response =  $this->_getHeader($code, $headers);
         $response = stripcslashes($response);
         $this->server->send($this->fd, $response);
     }
@@ -276,7 +281,7 @@ abstract class HttpInterface
             //$_SERVER['DOCUMENT_ROOT'] = $this->documentRoot ?? getcwd();
             $_SERVER['METHOD'] = $_SERVER['REQUEST_METHOD'] = $method;
             $_SERVER['QUERY'] = $_SERVER['REQUEST_URI'] = urldecode($query);
-			$_SERVER['QUERY_STRING'] = '';
+            $_SERVER['QUERY_STRING'] = '';
             $head = $head2 = '';
             return true;
         }
@@ -305,7 +310,7 @@ abstract class HttpInterface
     {
         $arr = parse_url($query);
         $path =  $arr['path'] ?? '';
-		$_SERVER['PHP_SELF'] = $path;
+        $_SERVER['PHP_SELF'] = $path;
         $query2 = $arr['query'] ?? '';
         if ($path == '/') {
             foreach ($this->defaultIndex as $index) {
@@ -338,8 +343,8 @@ abstract class HttpInterface
                 return true;
             }
             */
-			$lastTime = date('r');
-			$is_cache = 0;
+            $lastTime = date('r');
+            $is_cache = 0;
             if ($connect_type) {
                 // 获取文件修改时间
                 $fileTime = date('r', filemtime($file));
@@ -360,27 +365,34 @@ abstract class HttpInterface
                         $is_cache = 1;
                     }
                 }
-				$headers = ['Content-type'=>$connect_type,  'data'=>$lastTime];
-				if($this->gzip == 'on' && in_array($connect_type,$this->gzipTypes)){
-					$headers['Content-Encoding']='gzip';//deflate';
-				}
-                $this->setHeader(200, $headers);				
+                $headers = ['Content-Type'=>$connect_type,  'data'=>$lastTime];
+                if ($this->gzip == 'on' && in_array($connect_type, $this->gzipTypes)) {
+                    $headers['Content-Encoding']='gzip';//deflate';
+                }
+                $this->setHeader(200, $headers);
             } else {
-				$headers = ["Content-Type"=>"application/octet-stream","Content-Transfer-Encoding"=>"Binary","Content-disposition"=>"attachment","filename"=>basename($file)];
-				$this->setHeader(200, $headers);
+                $headers = ["Content-Type"=>"application/octet-stream","Content-Transfer-Encoding"=>"Binary","Content-disposition"=>"attachment","filename"=>basename($file)];
+                $this->setHeader(200, $headers);
             }
             if ($is_cache == 0) {
-
                 //'Last-Modified'=>$lastTime,'Etag'=>md5($fileTime.$file), 'data'=>$lastTime, 'Cache-Control'=>'max-age='.$this->cacheTime
                 if (isset($this->files[$file])) {
                     $filesize = $this->files[$file];
                 } else {
                     $filesize = filesize($file);
                 }
-                // 常规的循环读取
-                foreach ($this->readTheFile($file) as $data) {
-                    $this->send($data, $filesize);
+                if (isset($headers['Content-Encoding'])) {
+                    // 常规的循环读取
+                    foreach ($this->readTheFile($file) as $data) {
+                        $this->send($data);
+                    }
+                } else {
+                    // 常规的循环读取
+                    foreach ($this->readTheFile($file) as $data) {
+                        $this->send($data, $filesize);
+                    }
                 }
+
                 $type = null;
                 // 如果大于1000的文件，就重新搞
                 if (count($this->files)>1000) {
