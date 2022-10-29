@@ -119,7 +119,7 @@ abstract class HttpInterface
         $this->init();
         if ($this->handleData($data)) {
             $this->setEnv($_SERVER['Host']);
-            $query = iconv('UTF-8', 'GB2312', $_SERVER['QUERY']);
+            $query = IS_WIN ===TRUE ? iconv('UTF-8', 'GB2312', $_SERVER['QUERY']) : $_SERVER['QUERY'];
             $file = $this->getDefaultIndex($query);
             $status = $this->staticDir($file);
             if (!$status) {
@@ -167,17 +167,11 @@ abstract class HttpInterface
                 }
             }
         }
-        //print_r($files);
-        //print_r($dirs);
         closedir($handler);
         $html = '<html><head><title>Index of /</title></head><body><h1>Index of '.$_SERVER['QUERY'].'</h1><hr><pre><a href="../">../</a><br />';
-        // 打印所有文件名
         foreach ($dirs as  $value) {
-            //echo $value, PHP_EOL;
             $html .= "<a href=\"./{$value}\">{$value}</a><br />";
-            //getTab("<a href=\"{$value}\">{$value}</a>","21-Aug-2021 15:58   -");
         }
-        // 打印所有文件名
         foreach ($files as  $value) {
             $html .="<a href=\"./{$value}\">{$value}</a> <br />";
         }
@@ -308,7 +302,9 @@ abstract class HttpInterface
 
     public function getDefaultIndex($query)
     {
-        $arr = parse_url($query);
+        $arr =parse_url($query);
+		//$arr2 = explode("/",$query);
+		//print_r($arr2);
         $path =  $arr['path'] ?? '';
         $_SERVER['PHP_SELF'] = $path;
         $query2 = $arr['query'] ?? '';
