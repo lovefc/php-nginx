@@ -51,7 +51,11 @@ abstract class HttpInterface
 
     public $gzipTypes = [];
 
-    public $gzipCompLevel = 0; // 压缩等级
+    public $gzipCompLevel = 0;
+	
+	public $addHeaders = [];
+	
+	public $errorPage = '';
 
     // 事件
     private $events = [
@@ -88,9 +92,8 @@ abstract class HttpInterface
         $this->gzip = \FC\NginxConf::$Configs[$server_name]['gzip'][0] ?? 'off';
         $this->gzipCompLevel = \FC\NginxConf::$Configs[$server_name]['gzip_comp_level'][0] ?? 2;
         $this->gzipTypes = \FC\NginxConf::$Configs[$server_name]['gzip_types'] ?? [];
-        //print_r($this->gzipTypes);
-        //echo $this->gzipCompLevel.PHP_EOL;
-        //echo $this->gzip.PHP_EOL;
+		$this->addHeaders = \FC\NginxConf::$Configs[$server_name]['add_header'] ?? [];
+		$this->errorPage = \FC\NginxConf::$Configs[$server_name]['error_page'][0] ?? '';
         $_SERVER['DOCUMENT_ROOT'] = $this->documentRoot;
         $_SERVER['REQUEST_SCHEME'] = $this->requestScheme;
         $_SERVER['HTTP_HOST'] = $server_name;
@@ -119,16 +122,19 @@ abstract class HttpInterface
         $this->init();
         if ($this->handleData($data)) {
             $this->setEnv($_SERVER['Host']);
-            $query = IS_WIN ===TRUE ? iconv('UTF-8', 'GB2312', $_SERVER['QUERY']) : $_SERVER['QUERY'];
+            $query = IS_WIN ===true ? iconv('UTF-8', 'GB2312', $_SERVER['QUERY']) : $_SERVER['QUERY'];
             $file = $this->getDefaultIndex($query);
             $status = $this->staticDir($file);
             if (!$status) {
-                /*
-                is_callable($this->onMessage) && call_user_func_array($this->onMessage, [$this, $data]);
-                */
                 $status = ($this->displayCatalogue=='on') ? $this->autoIndex($file) : false;
                 if ($status==false) {
-                    $this->page404();
+					$status2 = false;
+					if($this->errorPage!=''){
+					    $status2 = $this->staticDir($this->errorPage);
+					}
+					if ($status2==false) {
+                        $this->page404();
+					}
                 }
             }
         }
@@ -203,7 +209,6 @@ abstract class HttpInterface
         }
         $response .= "Content-length:".$this->bodyLen.$this->separator;
         $response .= $this->separator;
-        //echo $response.PHP_EOL;
         return $this->protocolHeader . " ". $this->getHttpCode($code) . $this->separator . $response;
     }
 
@@ -226,6 +231,7 @@ abstract class HttpInterface
         $len = strlen($data);
         if ($this->bodyLen == 0) {
             $this->bodyLen = ($bodylen!= 0) ? $bodylen : $len;
+			$this->headers = array_merge($this->headers,$this->addHeaders);
             $response =  $this->_getHeader($this->headerCode, $this->headers);
             $response = stripcslashes($response);
         }
@@ -233,6 +239,16 @@ abstract class HttpInterface
         $this->server->send($this->fd, $response);
         $response = '';
     }
+	
+	// 访问日志
+	public function accessLog(){
+		//127.0.0.1 - - [19/Oct/2022:11:06:33 +0800] "GET / HTTP/1.1" 200 4118 "-" "Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/86.0.4240.198 Safari/537.36"
+	}
+	
+	// 错误日志
+	public function errorLog(){
+		//2022/10/19 11:05:53 [warn] 34572#24684: conflicting server name "cs.com" on 0.0.0.0:80, ignored
+	}
 
     // 发送状态码
     public function sendCode($code, $headers=[])
@@ -303,8 +319,8 @@ abstract class HttpInterface
     public function getDefaultIndex($query)
     {
         $arr =parse_url($query);
-		//$arr2 = explode("/",$query);
-		//print_r($arr2);
+        //$arr2 = explode("/",$query);
+        //print_r($arr2);
         $path =  $arr['path'] ?? '';
         $_SERVER['PHP_SELF'] = $path;
         $query2 = $arr['query'] ?? '';

@@ -2,7 +2,7 @@
 /*
  * @Author       : lovefc
  * @Date         : 2022-10-21 16:36:41
- * @LastEditTime : 2022-10-24 22:45:47
+ * @LastEditTime : 2022-10-29 20:20:41
  */
 
 namespace FC;
@@ -11,6 +11,7 @@ class NginxConf
 {
     public static $Configs = [];
     public static $parameters = [
+      "add_header",
       "listen",
       "server_name",
       "root",
@@ -23,9 +24,9 @@ class NginxConf
       "gzip",
       "gzip_types",
       "gzip_comp_level",
-	  'autoindex',
-	  'autoindex_exact_size',
-	  'autoindex_localtime'
+      "autoindex",
+      "autoindex_exact_size",
+      "autoindex_localtime"
     ];
 
     public static function defaultConf()
@@ -36,7 +37,8 @@ class NginxConf
                 'listen' => [80],
                 'server_name' => ['127.0.0.1'],
                 'root' => [$dir.DIRECTORY_SEPARATOR.'html'],
-                'index' => ['index.html','index.htm']
+                'index' => ['index.html','index.htm'],
+                'autoindex' => ['on']
             ]
         ];
         return $conf;
@@ -65,6 +67,14 @@ class NginxConf
             }
         }
     }
+	
+	// 整理字符串
+	public static function trimStr($str){
+		$str = $str[1];
+		$str = str_replace(' ','',$str);
+		return $str;
+	}
+	
     /**
      * 读取nginx配置文件信息
      * @param string $file 文件名称
@@ -77,6 +87,8 @@ class NginxConf
         $text = $matches[1][0];
         // 去掉注释
         $text = preg_replace("/\#(.*)\s+/i", "", $text);
+		// 去掉空格和'字符串
+		$text = preg_replace_callback("/'(.+?)'/i",'self::trimStr',$text);
         $arr = explode(";", $text);
         $confs = [];
         foreach ($arr as $text) {
@@ -84,14 +96,20 @@ class NginxConf
             $text2 = substr($text, 0, 1);
             foreach (self::$parameters  as $v2) {
                 if ($text2!='#' && preg_match("/{$v2}\s+/is", $text)) {
-                    if ($v2=='root') {
-                        $text = preg_replace("/\"/i", "", $text);
+                    if ($v2=='add_header') {
+                        $text = trim(substr($text, strlen($v2)));
+                        $_arrs = explode(" ", $text);
+                        $confs[$v2][$_arrs[0]] = $_arrs[1];
+                    } else {
+                        if ($v2=='root') {
+                            $text = preg_replace("/\"/i", "", $text);
+                        }
+                        $arrs = array_filter(explode(" ", trim(substr($text, strlen($v2)))));
+                        if ($v2!='index') {
+                            sort($arrs);
+                        }
+                        $confs[$v2] = $arrs;
                     }
-                    $arrs = array_filter(explode(" ", trim(substr($text, strlen($v2)))));
-                    if ($v2!='index') {
-                        sort($arrs);
-                    }
-                    $confs[$v2] = $arrs;
                 }
             }
         }

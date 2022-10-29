@@ -97,11 +97,11 @@ class App
 
     public static function run()
     {
-        \FC\NginxConf::readConf(PATH.'/conf/vhosts');
+        NginxConf::readConf(PATH.'/conf/vhosts');
         //print_r(NginxConf::$Configs);
 		$php_path = self::getPhpPath();
 		//echo $php_path;
-        foreach (\FC\NginxConf::$Configs as $k=>$v) {
+        foreach (NginxConf::$Configs as $k=>$v) {
             $server_name = $k;
             $cert = $v['ssl_certificate'][0] ?? '';
             $key = $v['ssl_certificate_key'][0] ?? '';
@@ -160,7 +160,7 @@ class App
         $server_name = isset($arg['h']) ? $arg['h'] : '127.0.0.1';
         $port = isset($arg['p']) ? $arg['p'] : '80';
         (!$server_name || !$port) && die('执行失败');
-		\FC\NginxConf::readConf(PATH.'/conf/vhosts');
+		NginxConf::readConf(PATH.'/conf/vhosts');
         self::work($server_name, $port);
     }
 
