@@ -2,7 +2,7 @@
 /*
  * @Author       : lovefc
  * @Date         : 2022-10-21 16:36:41
- * @LastEditTime : 2022-10-29 20:20:41
+ * @LastEditTime : 2022-11-01 22:14:03
  */
 
 namespace FC;
@@ -11,6 +11,9 @@ class NginxConf
 {
     public static $Configs = [];
     public static $parameters = [
+      "autoindex",
+      "autoindex_exact_size",
+      "autoindex_localtime",	
       "add_header",
       "listen",
       "server_name",
@@ -24,9 +27,30 @@ class NginxConf
       "gzip",
       "gzip_types",
       "gzip_comp_level",
-      "autoindex",
-      "autoindex_exact_size",
-      "autoindex_localtime"
+    ];
+
+    /*
+= : 严格匹配。如果这个查询匹配，那么将停止搜索并立即处理此请求。
+~ : 为区分大小写匹配(可用正则表达式)
+!~ : 为区分大小写不匹配
+~* : 为不区分大小写匹配(可用正则表达式)
+!~* : 为不区分大小写不匹配
+^~ : 如果把这个前缀用于一个常规字符串,那么告诉nginx 如果路径匹配那么不测试正则表达式。
+    */
+    public static $parameRules = [
+        '~*',//为不区分大小写匹配(可用正则表达式)
+
+        '^~',//开头表示uri以某个常规字符串开头
+
+        '!~',//为区分大小写不匹配
+
+        '~',//为区分大小写匹配(可用正则表达式)
+
+        '!~*',//为不区分大小写不匹配
+
+        '/',//通用匹配, 如果没有其它匹配,任何请求都会匹配到。
+
+        '=', // 表示精确匹配
     ];
 
     public static function defaultConf()
@@ -67,35 +91,23 @@ class NginxConf
             }
         }
     }
-	
-	// 整理字符串
-	public static function trimStr($str){
-		$str = $str[1];
-		$str = str_replace(' ','',$str);
-		return $str;
-	}
-	
-    /**
-     * 读取nginx配置文件信息
-     * @param string $file 文件名称
-     */
-    public static function getConf($file)
+
+    // 整理字符串
+    public static function trimStr($str)
     {
-        $text = file_get_contents($file);
-        $matches = [];
-        preg_match_all('/server\s*{(.*)\s*}/is', $text, $matches);
-        $text = $matches[1][0];
-        // 去掉注释
-        $text = preg_replace("/\#(.*)\s+/i", "", $text);
-		// 去掉空格和'字符串
-		$text = preg_replace_callback("/'(.+?)'/i",'self::trimStr',$text);
-        $arr = explode(";", $text);
-        $confs = [];
+        $str = $str[1];
+        $str = str_replace(' ', '', $str);
+        return $str;
+    }
+
+    // 解析参数
+    public static function analysis($arr, &$confs)
+    {
         foreach ($arr as $text) {
             $text = trim($text);
             $text2 = substr($text, 0, 1);
             foreach (self::$parameters  as $v2) {
-                if ($text2!='#' && preg_match("/{$v2}\s+/is", $text)) {
+                if ($text2!='#' && preg_match("/^{$v2}\s+/is", $text)) {
                     if ($v2=='add_header') {
                         $text = trim(substr($text, strlen($v2)));
                         $_arrs = explode(" ", $text);
@@ -113,8 +125,46 @@ class NginxConf
                 }
             }
         }
+    }
+
+
+    // 匹配location字符串
+    public static function pregLocation($text)
+    {
+        preg_match_all("/location\s+(.+?)\s*{(.+?)\s*}/is", $text, $matches2);
+        $matches2_status = $matches2[1][0] ?? '';
+        $locations = [];
+        if ($matches2_status) {
+            foreach ($matches2[1] as $k=>$v) {
+                $preg = trim(str_replace(self::$parameRules, "", $v));
+                $locations[$preg] = trim($matches2[2][$k]);
+            }
+        }
+        return $locations;
+    }
+
+    /**
+     * 读取nginx配置文件信息
+     * @param string $file 文件名称
+     */
+    public static function getConf($file)
+    {
+        $text = file_get_contents($file);
+        $matches = [];
+        preg_match_all('/server\s*{(.*)\s*}/is', $text, $matches);
+        $text = $matches[1][0];
+        // 去掉注释
+        $text = preg_replace("/\#(.*)\s+/i", "", $text);
+        // 去掉空格和'字符串
+        $text = preg_replace_callback("/'(.+?)'/i", 'self::trimStr', $text);
+        // 匹配location字符串
+        $confs = [];
+        $confs['location'] = self::pregLocation($text);
+        $arr = explode(";", $text);
+        self::analysis($arr, $confs);
         return $confs;
     }
+
 
     public static function readConf($path='', $extensions=['conf'])
     {

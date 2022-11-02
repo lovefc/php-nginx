@@ -56,6 +56,10 @@ abstract class HttpInterface
 	public $addHeaders = [];
 	
 	public $errorPage = '';
+	
+	public $locations;
+	
+	public $setenvStatus = 0;
 
     // 事件
     private $events = [
@@ -86,6 +90,7 @@ abstract class HttpInterface
     // 设置系统参数
     public function setEnv($server_name)
     {
+		if($this->setenvStatus ==0){
         $this->documentRoot = \FC\NginxConf::$Configs[$server_name]['root'][0] ?? null;
         $this->defaultIndex = \FC\NginxConf::$Configs[$server_name]['index'] ?? [];
         $this->displayCatalogue = \FC\NginxConf::$Configs[$server_name]['autoindex'][0] ?? 'off';
@@ -94,12 +99,15 @@ abstract class HttpInterface
         $this->gzipTypes = \FC\NginxConf::$Configs[$server_name]['gzip_types'] ?? [];
 		$this->addHeaders = \FC\NginxConf::$Configs[$server_name]['add_header'] ?? [];
 		$this->errorPage = \FC\NginxConf::$Configs[$server_name]['error_page'][0] ?? '';
+		$this->locations = \FC\NginxConf::$Configs[$server_name]['location'] ?? '';
         $_SERVER['DOCUMENT_ROOT'] = $this->documentRoot;
-        $_SERVER['REQUEST_SCHEME'] = $this->requestScheme;
-        $_SERVER['HTTP_HOST'] = $server_name;
-        $_SERVER['SERVER_NAME'] = $server_name;
         $_SERVER['SERVER_PORT'] = '';// 端口
         $_SERVER['SERVER_SOFTWARE'] = 'php-nginx/0.01';
+		$this->setenvStatus = 1;
+		}
+		$_SERVER['REQUEST_SCHEME'] = $this->requestScheme;
+		$_SERVER['HTTP_HOST'] = $server_name;
+        $_SERVER['SERVER_NAME'] = $server_name;		
         /*
             [REMOTE_PORT] => 65414
             [REMOTE_ADDR] => 127.0.0.1
@@ -124,6 +132,8 @@ abstract class HttpInterface
             $this->setEnv($_SERVER['Host']);
             $query = IS_WIN ===true ? iconv('UTF-8', 'GB2312', $_SERVER['QUERY']) : $_SERVER['QUERY'];
             $file = $this->getDefaultIndex($query);
+			echo $file.PHP_EOL;
+			$this->analysisLocation($query);
             $status = $this->staticDir($file);
             if (!$status) {
                 $status = ($this->displayCatalogue=='on') ? $this->autoIndex($file) : false;
@@ -147,7 +157,36 @@ abstract class HttpInterface
         $this->setHeader(404);
         $this->send($data);
     }
-
+	
+	public function analysisLocationValue($text){
+		$arrs = array_filter(explode(" ", trim($text)));
+		print_r($arrs);
+		$key = $arrs[0] ?? '';
+		$value = $arrs[1] ?? '';
+		
+		if(strtolower($key) == 'expires'){
+			$lastTime = date('r');
+			$heads = [];
+			$this->addHeaders = array_merge($heads,$this->addHeaders);
+			//print_r($this->addHeaders);
+		}
+		
+		if(strtolower($key) == 'fastcgi_pass'){
+			
+		}		
+	}
+	
+    // 解析参数
+    public function analysisLocation($query){
+		if(!empty($this->locations)){
+			foreach($this->locations as $k=>$v){
+				if(preg_match("/{$k}/i", $query, $matches)){
+					$this->analysisLocationValue($v);
+				}
+			}
+		}
+	}
+	
     // 目录索引
     public function autoIndex($dir)
     {
@@ -274,6 +313,7 @@ abstract class HttpInterface
     public function handleData($data)
     {
         //有文件头，来处理head头
+		echo $data.PHP_EOL;
         if (stripos($data, $this->protocolHeader)) {
             $data2 = explode("\r\n\r\n", $data)[0];
             $header = explode("\r\n", $data2);
@@ -319,16 +359,16 @@ abstract class HttpInterface
     public function getDefaultIndex($query)
     {
         $arr =parse_url($query);
-        //$arr2 = explode("/",$query);
-        //print_r($arr2);
         $path =  $arr['path'] ?? '';
         $_SERVER['PHP_SELF'] = $path;
         $query2 = $arr['query'] ?? '';
-        if ($path == '/') {
+        if (substr($path, -1) == '/') {
             foreach ($this->defaultIndex as $index) {
-                $file = $this->documentRoot.DIRECTORY_SEPARATOR.$index;
+                $file = $this->documentRoot.$path.$index;
+				echo $file.PHP_EOL;
                 if (is_file($file)) {
-                    $_SERVER['QUERY'] = $index."?{$query2}";
+                    $_SERVER['QUERY'] = $path.$index."?{$query2}";
+					$_SERVER['PHP_SELF'] = $path.$index;
                     return $file;
                 }
             }
@@ -364,12 +404,12 @@ abstract class HttpInterface
                 if ($since) {
                     $sinceTime = strtotime($since);
                     // 如果设置了缓存时间
-                    if ($this->cacheTime!=0) {
+                    //if ($this->cacheTime!=0) {
                         //更新时间 大于等于 现在时间减去缓存时间
-                        if ($sinceTime >= (time() - $this->cacheTime)) {
+                        if ($sinceTime >= (time() - 7200)) {
                             $is_cache = 1;
                         }
-                    }
+                    //}
 
                     // 如果文件的最后时间小于当前时间
                     if ($sinceTime < time() && ($is_cache ==1)) {
@@ -377,17 +417,17 @@ abstract class HttpInterface
                         $is_cache = 1;
                     }
                 }
-                $headers = ['Content-Type'=>$connect_type,  'data'=>$lastTime];
+				// 'Expires'=> date('r',time() + 7200), 'Age'=>7200,'Accept-Ranges'=>'bytes',
+                $headers = ['Content-Type'=>$connect_type,  'Data'=>$lastTime, 'Etag'=>md5($file.$fileTime), 'Last-Modified'=>$lastTime, 'Cache-Control'=>'max-age=7200'];
                 if ($this->gzip == 'on' && in_array($connect_type, $this->gzipTypes)) {
                     $headers['Content-Encoding']='gzip';//deflate';
                 }
                 $this->setHeader(200, $headers);
             } else {
-                $headers = ["Content-Type"=>"application/octet-stream","Content-Transfer-Encoding"=>"Binary","Content-disposition"=>"attachment","filename"=>basename($file)];
+                $headers = ["Content-Type"=>"application/octet-stream","Content-Transfer-Encoding"=>"Binary", "Content-disposition"=>"attachment","filename"=>basename($file)];
                 $this->setHeader(200, $headers);
             }
             if ($is_cache == 0) {
-                //'Last-Modified'=>$lastTime,'Etag'=>md5($fileTime.$file), 'data'=>$lastTime, 'Cache-Control'=>'max-age='.$this->cacheTime
                 if (isset($this->files[$file])) {
                     $filesize = $this->files[$file];
                 } else {

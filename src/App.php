@@ -120,8 +120,6 @@ class App
         cli_set_process_title($process_title);
         $cert = NginxConf::$Configs[$server_name]['ssl_certificate'][0] ?? null;
         $key  = NginxConf::$Configs[$server_name]['ssl_certificate_key'][0] ?? null;
-        //$document_root = NginxConf::$Configs[$server_name]['root'][0] ?? null;
-        //$default_index = NginxConf::$Configs[$server_name]['index'] ?? [];
         if (!empty($cert) && !empty($key)) {
             $context_option = array(
                 'ssl' => array(
