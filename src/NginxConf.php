@@ -117,10 +117,7 @@ class NginxConf
                         if ($v2=='root') {
                             $text = preg_replace("/\"/i", "", $text);
                         }
-                        $arrs = array_filter(explode(" ", trim(substr($text, strlen($v2)))));
-                        if ($v2!='index') {
-                            sort($arrs);
-                        }
+                        $arrs = array_values(array_filter(explode(" ", trim(substr($text, strlen($v2))))));
                         $confs[$v2] = $arrs;
                     }
                 }

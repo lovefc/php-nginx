@@ -114,6 +114,8 @@ abstract class HttpInterface
             $_SERVER['REQUEST_SCHEME'] = $this->requestScheme;
             $_SERVER['HTTP_HOST'] = $server_name;
             $_SERVER['SERVER_NAME'] = $server_name;
+            $_SERVER['SERVER_PROTOCOL'] = $this->protocolHeader;
+            $_SERVER['GATEWAY_INTERFACE'] = 'CGI/1.1';
         }
         $address = explode(":", $this->remoteAddress);
         $_SERVER['REMOTE_ADDR'] = $address[0] ?? '';
@@ -123,6 +125,15 @@ abstract class HttpInterface
         $_SERVER['QUERY_STRING'] = $tmp[1] ?? '';
         $_SERVER['SCRIPT_FILENAME'] = $this->documentRoot.$_SERVER['PHP_SELF'];
         //print_r($_SERVER);
+    }
+
+    // 解析query
+    public function explodeQuery()
+    {
+        $tmp = explode("?", $_SERVER['QUERY']);
+        $_SERVER['SCRIPT_NAME'] = $_SERVER['DOCUMENT_URI'] =  $_SERVER['PHP_SELF'] = $tmp[0] ?? '';
+        $_SERVER['QUERY_STRING'] = $tmp[1] ?? '';
+        $_SERVER['SCRIPT_FILENAME'] = $this->documentRoot.$_SERVER['PHP_SELF'];
     }
 
     // 连接
@@ -141,8 +152,10 @@ abstract class HttpInterface
         if ($this->handleData($data)) {
             $this->setEnv($_SERVER['Host']);
             $query = IS_WIN ===true ? iconv('UTF-8', 'GB2312', $_SERVER['QUERY']) : $_SERVER['QUERY'];
+            clearstatcache();
             $file = $this->getDefaultIndex($query);
-            $this->analysisLocation($query);
+            $this->explodeQuery();
+            $this->analysisLocation($_SERVER['PHP_SELF']);
             $status = $this->staticDir($file);
             if (!$status) {
                 $status = ($this->displayCatalogue=='on') ? $this->autoIndex($file) : false;
@@ -168,15 +181,15 @@ abstract class HttpInterface
     }
 
 
-    public function fastcgiPHP($host = '127.0.0.1',$port = '9000')
+    public function fastcgiPHP($host = '127.0.0.1', $port = '9000')
     {
         $client = new \FC\Client($host, $port);
         $content = '';
         //$php_value = "auto_prepend_file = php://input";
         //$filepath  = '/home/wwwroot/php-static/2.php';
-		$server = [
+        $server = [
             'GATEWAY_INTERFACE' => 'FastCGI/1.0',
-            'SERVER_SOFTWARE' => 'php/fcgiclient',		
+            'SERVER_SOFTWARE' => 'php/fcgiclient',
             'SERVER_PROTOCOL' => 'HTTP/1.1',
             'CONTENT_TYPE' => 'application/x-www-form-urlencoded',
             'REQUEST_METHOD' => $_SERVER['REQUEST_METHOD'],
@@ -187,20 +200,41 @@ abstract class HttpInterface
             'SERVER_PORT' => $_SERVER['SERVER_PORT'],
             'SERVER_NAME' => $_SERVER['SERVER_NAME'],
             //'CONTENT_LENGTH' => strlen($content),
-            'QUERY_STRING' => $_SERVER['QUERY_STRING']
+            'QUERY_STRING' => $_SERVER['QUERY_STRING'],
+            'HTTP_ACCEPT_LANGUAGE' => $_SERVER['Accept-Language'],
+            'HTTP_ACCEPT_ENCODING' => $_SERVER['Accept-Encoding'],
+            'HTTP_SEC_FETCH_DEST' => $_SERVER['Sec-Fetch-Dest'],
+            'HTTP_SEC_FETCH_USER' => $_SERVER['Sec-Fetch-User'],
+            'HTTP_SEC_FETCH_MODE' => $_SERVER['Sec-Fetch-Mode'],
+            'HTTP_SEC_FETCH_SITE' => $_SERVER['Sec-Fetch-Site'],
+            'HTTP_ACCEPT' => $_SERVER['Accept'],
+            'HTTP_USER_AGENT' => $_SERVER['User-Agent']
         ];
-		//print_r($server);
         $text = $client->request($server, $content);
-        $arr = explode("\n",$text);
-		print_r($arr);
+        $arr = explode("\r\n\r\n", $text);
+        $header_text = $arr[0] ?? [];
+        $content = $arr[1] ?? '';
+        $headers = explode("\n", $header_text);
+        foreach ($headers as $v) {
+            $head2  = explode(":", $v);
+            $v_num = strlen($head2[0].":");
+            $v2 = substr($v, $v_num);
+            $this->headers[trim($head2[0])] = trim($v2);
+        }
+		/** 这里要获取到fpm里面设置的状态码和header头 **/
+		$code = isset($this->headers['Status']) ? $this->getHttpCode($this->headers['Status']) : 200;
+		$this->setHeader($code, $this->headers);
+        $this->send($content);
+		$server = [];
+        return true;
     }
 
     public function analysisLocationValue($text)
     {
-        $arrs = array_filter(explode(" ", trim($text)));
+        $text = str_replace(";", '', $text);
+        $arrs = array_values(array_filter(explode(" ", trim($text))));
         $key = $arrs[0] ?? '';
         $value = $arrs[1] ?? '';
-
         // 缓存
         if (strtolower($key) == 'expires') {
             $lastTime = date('r');
@@ -209,8 +243,15 @@ abstract class HttpInterface
         }
         // 解析php
         if (strtolower($key) == 'fastcgi_pass') {
-			$this->fastcgiPHP();
+            $tmp = explode(":", $value);
+            $host = $tmp[0] ?? false;
+            $port = $tmp[1] ?? false;
+            if (!$host || !$port) {
+                return false;
+            }
+            return $this->fastcgiPHP($host, $port);
         }
+        return false;
     }
 
     // 解析参数
@@ -286,7 +327,7 @@ abstract class HttpInterface
         }
         $response .= "Content-length:".$this->bodyLen.$this->separator;
         $response .= $this->separator;
-        return $this->protocolHeader . " ". $this->getHttpCode($code) . $this->separator . $response;
+        return $this->protocolHeader . " ". $this->getHttpCodeValue($code) . $this->separator . $response;
     }
 
     // 设置文件头
@@ -349,11 +390,17 @@ abstract class HttpInterface
         $this->server->send($this->fd, $response);
     }
 
-    // 获取状态码
-    public function getHttpCode($code)
+    // 获取状态码-根据code找值
+    public function getHttpCodeValue($code)
     {
         return HttpCode::$STATUS_CODES[$code] ?? '';
     }
+	
+    // 获取状态码-根据值找键名
+    public function getHttpCode($value)
+    {
+		return array_search($value,HttpCode::$STATUS_CODES);
+    }	
 
     // 获取http方法
     public function getHttpMethod($method)
@@ -435,15 +482,6 @@ abstract class HttpInterface
             $type = $this->types;
             $ext = $this->getExt($file);
             $connect_type = $type[$ext] ?? null;
-            /*
-            if ($connect_type == 'application/x-httpd-php') {
-                $php_path = \FC\App::getPhpPath();
-                $command = $php_path.' -f '.$file;
-                $data = \FC\App::realCmd($command);
-                $this->send($data);
-                return true;
-            }
-            */
             $lastTime = date('r');
             $is_cache = 0;
             if ($connect_type) {
