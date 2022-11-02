@@ -65,6 +65,7 @@ class NginxConf
                 'autoindex' => ['on']
             ]
         ];
+		$conf = [];
         return $conf;
     }
 

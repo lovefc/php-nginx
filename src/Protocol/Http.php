@@ -18,11 +18,12 @@ class Http extends HttpInterface
         /** 初始默认 **/
         $this->init();
 		$this->requestScheme = 'http';
+		$this->getHost($text);
     }
 
     public function socketAccept($server)
     {
-        $client = stream_socket_accept($server, 1);
+        $client = stream_socket_accept($server, 0, $this->remoteAddress);
         return $client;
     }
 }

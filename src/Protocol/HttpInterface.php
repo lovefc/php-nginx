@@ -52,14 +52,16 @@ abstract class HttpInterface
     public $gzipTypes = [];
 
     public $gzipCompLevel = 0;
-	
-	public $addHeaders = [];
-	
-	public $errorPage = '';
-	
-	public $locations;
-	
-	public $setenvStatus = 0;
+
+    public $addHeaders = [];
+
+    public $errorPage = '';
+
+    public $locations;
+
+    public $setenvStatus = 0;
+
+    public $remoteAddress;
 
     // 事件
     private $events = [
@@ -78,7 +80,6 @@ abstract class HttpInterface
            'Content-Type'=>'text/html',
            'Connection'=>'keep-alive',
         ];
-        $this->bodyLen = 0;
     }
 
     // 启动
@@ -87,32 +88,41 @@ abstract class HttpInterface
         $this->server->start();
     }
 
+    public function getHost($text)
+    {
+        $tmp = \explode(':', $text);
+        $_SERVER['SERVER_ADDR'] = $tmp[0] ?? '';// 地址
+        $_SERVER['SERVER_PORT'] = $tmp[1] ?? '';// 端口
+    }
+
     // 设置系统参数
     public function setEnv($server_name)
     {
-		if($this->setenvStatus ==0){
-        $this->documentRoot = \FC\NginxConf::$Configs[$server_name]['root'][0] ?? null;
-        $this->defaultIndex = \FC\NginxConf::$Configs[$server_name]['index'] ?? [];
-        $this->displayCatalogue = \FC\NginxConf::$Configs[$server_name]['autoindex'][0] ?? 'off';
-        $this->gzip = \FC\NginxConf::$Configs[$server_name]['gzip'][0] ?? 'off';
-        $this->gzipCompLevel = \FC\NginxConf::$Configs[$server_name]['gzip_comp_level'][0] ?? 2;
-        $this->gzipTypes = \FC\NginxConf::$Configs[$server_name]['gzip_types'] ?? [];
-		$this->addHeaders = \FC\NginxConf::$Configs[$server_name]['add_header'] ?? [];
-		$this->errorPage = \FC\NginxConf::$Configs[$server_name]['error_page'][0] ?? '';
-		$this->locations = \FC\NginxConf::$Configs[$server_name]['location'] ?? '';
-        $_SERVER['DOCUMENT_ROOT'] = $this->documentRoot;
-        $_SERVER['SERVER_PORT'] = '';// 端口
-        $_SERVER['SERVER_SOFTWARE'] = 'php-nginx/0.01';
-		$this->setenvStatus = 1;
-		}
-		$_SERVER['REQUEST_SCHEME'] = $this->requestScheme;
-		$_SERVER['HTTP_HOST'] = $server_name;
-        $_SERVER['SERVER_NAME'] = $server_name;		
-        /*
-            [REMOTE_PORT] => 65414
-            [REMOTE_ADDR] => 127.0.0.1
-            用户ip和端口
-        */
+        if ($this->setenvStatus ==0) {
+            $this->documentRoot = \FC\NginxConf::$Configs[$server_name]['root'][0] ?? null;
+            $this->defaultIndex = \FC\NginxConf::$Configs[$server_name]['index'] ?? [];
+            $this->displayCatalogue = \FC\NginxConf::$Configs[$server_name]['autoindex'][0] ?? 'off';
+            $this->gzip = \FC\NginxConf::$Configs[$server_name]['gzip'][0] ?? 'off';
+            $this->gzipCompLevel = \FC\NginxConf::$Configs[$server_name]['gzip_comp_level'][0] ?? 2;
+            $this->gzipTypes = \FC\NginxConf::$Configs[$server_name]['gzip_types'] ?? [];
+            $this->addHeaders = \FC\NginxConf::$Configs[$server_name]['add_header'] ?? [];
+            $this->errorPage = \FC\NginxConf::$Configs[$server_name]['error_page'][0] ?? '';
+            $this->locations = \FC\NginxConf::$Configs[$server_name]['location'] ?? '';
+            $_SERVER['DOCUMENT_ROOT'] = $_SERVER['PATH_TRANSLATED'] =  $this->documentRoot;
+            $_SERVER['SERVER_SOFTWARE'] = 'php-nginx/0.01';
+            $this->setenvStatus = 1;
+            $_SERVER['REQUEST_SCHEME'] = $this->requestScheme;
+            $_SERVER['HTTP_HOST'] = $server_name;
+            $_SERVER['SERVER_NAME'] = $server_name;
+        }
+        $address = explode(":", $this->remoteAddress);
+        $_SERVER['REMOTE_ADDR'] = $address[0] ?? '';
+        $_SERVER['REMOTE_PORT'] = $address[1] ?? '';
+        $tmp = explode("?", $_SERVER['QUERY']);
+        $_SERVER['SCRIPT_NAME'] = $_SERVER['DOCUMENT_URI'] =  $_SERVER['PHP_SELF'] = $tmp[0] ?? '';
+        $_SERVER['QUERY_STRING'] = $tmp[1] ?? '';
+        $_SERVER['SCRIPT_FILENAME'] = $this->documentRoot.$_SERVER['PHP_SELF'];
+        //print_r($_SERVER);
     }
 
     // 连接
@@ -132,19 +142,18 @@ abstract class HttpInterface
             $this->setEnv($_SERVER['Host']);
             $query = IS_WIN ===true ? iconv('UTF-8', 'GB2312', $_SERVER['QUERY']) : $_SERVER['QUERY'];
             $file = $this->getDefaultIndex($query);
-			echo $file.PHP_EOL;
-			$this->analysisLocation($query);
+            $this->analysisLocation($query);
             $status = $this->staticDir($file);
             if (!$status) {
                 $status = ($this->displayCatalogue=='on') ? $this->autoIndex($file) : false;
                 if ($status==false) {
-					$status2 = false;
-					if($this->errorPage!=''){
-					    $status2 = $this->staticDir($this->errorPage);
-					}
-					if ($status2==false) {
+                    $status2 = false;
+                    if ($this->errorPage!='') {
+                        $status2 = $this->staticDir($this->errorPage);
+                    }
+                    if ($status2==false) {
                         $this->page404();
-					}
+                    }
                 }
             }
         }
@@ -157,36 +166,65 @@ abstract class HttpInterface
         $this->setHeader(404);
         $this->send($data);
     }
-	
-	public function analysisLocationValue($text){
-		$arrs = array_filter(explode(" ", trim($text)));
-		print_r($arrs);
-		$key = $arrs[0] ?? '';
-		$value = $arrs[1] ?? '';
-		
-		if(strtolower($key) == 'expires'){
-			$lastTime = date('r');
-			$heads = [];
-			$this->addHeaders = array_merge($heads,$this->addHeaders);
-			//print_r($this->addHeaders);
-		}
-		
-		if(strtolower($key) == 'fastcgi_pass'){
-			
-		}		
-	}
-	
+
+
+    public function fastcgiPHP($host = '127.0.0.1',$port = '9000')
+    {
+        $client = new \FC\Client($host, $port);
+        $content = '';
+        //$php_value = "auto_prepend_file = php://input";
+        //$filepath  = '/home/wwwroot/php-static/2.php';
+		$server = [
+            'GATEWAY_INTERFACE' => 'FastCGI/1.0',
+            'SERVER_SOFTWARE' => 'php/fcgiclient',		
+            'SERVER_PROTOCOL' => 'HTTP/1.1',
+            'CONTENT_TYPE' => 'application/x-www-form-urlencoded',
+            'REQUEST_METHOD' => $_SERVER['REQUEST_METHOD'],
+            'SCRIPT_FILENAME' => $_SERVER['SCRIPT_FILENAME'],
+            'REMOTE_ADDR' => $_SERVER['REMOTE_ADDR'],
+            'REMOTE_PORT' => $_SERVER['REMOTE_PORT'],
+            'SERVER_ADDR' => $_SERVER['SERVER_ADDR'],
+            'SERVER_PORT' => $_SERVER['SERVER_PORT'],
+            'SERVER_NAME' => $_SERVER['SERVER_NAME'],
+            //'CONTENT_LENGTH' => strlen($content),
+            'QUERY_STRING' => $_SERVER['QUERY_STRING']
+        ];
+		//print_r($server);
+        $text = $client->request($server, $content);
+        $arr = explode("\n",$text);
+		print_r($arr);
+    }
+
+    public function analysisLocationValue($text)
+    {
+        $arrs = array_filter(explode(" ", trim($text)));
+        $key = $arrs[0] ?? '';
+        $value = $arrs[1] ?? '';
+
+        // 缓存
+        if (strtolower($key) == 'expires') {
+            $lastTime = date('r');
+            $heads = [];
+            $this->addHeaders = array_merge($heads, $this->addHeaders);
+        }
+        // 解析php
+        if (strtolower($key) == 'fastcgi_pass') {
+			$this->fastcgiPHP();
+        }
+    }
+
     // 解析参数
-    public function analysisLocation($query){
-		if(!empty($this->locations)){
-			foreach($this->locations as $k=>$v){
-				if(preg_match("/{$k}/i", $query, $matches)){
-					$this->analysisLocationValue($v);
-				}
-			}
-		}
-	}
-	
+    public function analysisLocation($query)
+    {
+        if (!empty($this->locations)) {
+            foreach ($this->locations as $k=>$v) {
+                if (preg_match("/{$k}/i", $query, $matches)) {
+                    $this->analysisLocationValue($v);
+                }
+            }
+        }
+    }
+
     // 目录索引
     public function autoIndex($dir)
     {
@@ -259,35 +297,49 @@ abstract class HttpInterface
             $this->headers = $headers;
         }
     }
-
     // 发送消息
     public function send($data, $bodylen=0)
     {
-        $response = '';
+        $str_len =  strlen($data); // 当前字符串大小
+        $bodylen = ($bodylen==0) ? $str_len : $bodylen;	// 判断有没有传入大小
+        // 说明只有一片
+        if ($str_len == $bodylen) {
+            $this->body = $data;
+            $this->bodyLen = $str_len;
+        } else {
+            $len = $this->bodyLen+$str_len;
+            $this->body .= $data;
+            $this->bodyLen += $str_len;
+            if ($len < $bodylen) {
+                return false;
+            }
+        }
+
+        // gzip压缩
         if (isset($this->headers['Content-Encoding'])  && $this->headers['Content-Encoding'] == 'gzip') {
-            $data = \gzencode($data);
+            $this->body = \gzencode($this->body);
+            $this->bodyLen = strlen($this->body);
         }
-        $len = strlen($data);
-        if ($this->bodyLen == 0) {
-            $this->bodyLen = ($bodylen!= 0) ? $bodylen : $len;
-			$this->headers = array_merge($this->headers,$this->addHeaders);
-            $response =  $this->_getHeader($this->headerCode, $this->headers);
-            $response = stripcslashes($response);
-        }
-        $response .= $data;
+        $this->headers = array_merge($this->headers, $this->addHeaders);
+        $response =  $this->_getHeader($this->headerCode, $this->headers);
+        $response = stripcslashes($response);
+        $response .= $this->body;
         $this->server->send($this->fd, $response);
-        $response = '';
+        $this->body = '';
+        $this->bodyLen	= 0;
     }
-	
-	// 访问日志
-	public function accessLog(){
-		//127.0.0.1 - - [19/Oct/2022:11:06:33 +0800] "GET / HTTP/1.1" 200 4118 "-" "Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/86.0.4240.198 Safari/537.36"
-	}
-	
-	// 错误日志
-	public function errorLog(){
-		//2022/10/19 11:05:53 [warn] 34572#24684: conflicting server name "cs.com" on 0.0.0.0:80, ignored
-	}
+
+    // 访问日志
+    public function accessLog()
+    {
+        //127.0.0.1 - - [19/Oct/2022:11:06:33 +0800] "GET / HTTP/1.1" 200 4118 "-" "Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/86.0.4240.198 Safari/537.36"
+    }
+
+    // 错误日志
+    public function errorLog()
+    {
+        //2022/10/19 11:05:53 [warn] 34572#24684: conflicting server name "cs.com" on 0.0.0.0:80, ignored
+    }
 
     // 发送状态码
     public function sendCode($code, $headers=[])
@@ -313,7 +365,7 @@ abstract class HttpInterface
     public function handleData($data)
     {
         //有文件头，来处理head头
-		echo $data.PHP_EOL;
+        //echo $data.PHP_EOL;
         if (stripos($data, $this->protocolHeader)) {
             $data2 = explode("\r\n\r\n", $data)[0];
             $header = explode("\r\n", $data2);
@@ -328,10 +380,8 @@ abstract class HttpInterface
                 $head[trim($head2[0])] = trim($v2);
             }
             $_SERVER = array_merge($_SERVER, $head);
-            //$_SERVER['DOCUMENT_ROOT'] = $this->documentRoot ?? getcwd();
             $_SERVER['METHOD'] = $_SERVER['REQUEST_METHOD'] = $method;
             $_SERVER['QUERY'] = $_SERVER['REQUEST_URI'] = urldecode($query);
-            $_SERVER['QUERY_STRING'] = '';
             $head = $head2 = '';
             return true;
         }
@@ -360,15 +410,14 @@ abstract class HttpInterface
     {
         $arr =parse_url($query);
         $path =  $arr['path'] ?? '';
-        $_SERVER['PHP_SELF'] = $path;
+        // $_SERVER['PHP_SELF'] = $path;
         $query2 = $arr['query'] ?? '';
         if (substr($path, -1) == '/') {
             foreach ($this->defaultIndex as $index) {
                 $file = $this->documentRoot.$path.$index;
-				echo $file.PHP_EOL;
                 if (is_file($file)) {
                     $_SERVER['QUERY'] = $path.$index."?{$query2}";
-					$_SERVER['PHP_SELF'] = $path.$index;
+                    // $_SERVER['PHP_SELF'] = $path.$index;
                     return $file;
                 }
             }
@@ -405,10 +454,10 @@ abstract class HttpInterface
                     $sinceTime = strtotime($since);
                     // 如果设置了缓存时间
                     //if ($this->cacheTime!=0) {
-                        //更新时间 大于等于 现在时间减去缓存时间
-                        if ($sinceTime >= (time() - 7200)) {
-                            $is_cache = 1;
-                        }
+                    //更新时间 大于等于 现在时间减去缓存时间
+                    if ($sinceTime >= (time() - 7200)) {
+                        $is_cache = 1;
+                    }
                     //}
 
                     // 如果文件的最后时间小于当前时间
@@ -417,8 +466,8 @@ abstract class HttpInterface
                         $is_cache = 1;
                     }
                 }
-				// 'Expires'=> date('r',time() + 7200), 'Age'=>7200,'Accept-Ranges'=>'bytes',
-                $headers = ['Content-Type'=>$connect_type,  'Data'=>$lastTime, 'Etag'=>md5($file.$fileTime), 'Last-Modified'=>$lastTime, 'Cache-Control'=>'max-age=7200'];
+                // 'Expires'=> date('r',time() + 7200), 'Age'=>7200,'Accept-Ranges'=>'bytes','Etag'=>md5($file.$fileTime), 'Last-Modified'=>$lastTime, 'Cache-Control'=>'max-age=7200'
+                $headers = ['Content-Type'=>$connect_type,  'Accept-Ranges'=>'bytes', 'Data'=>$lastTime];
                 if ($this->gzip == 'on' && in_array($connect_type, $this->gzipTypes)) {
                     $headers['Content-Encoding']='gzip';//deflate';
                 }
@@ -433,16 +482,10 @@ abstract class HttpInterface
                 } else {
                     $filesize = filesize($file);
                 }
-                if (isset($headers['Content-Encoding'])) {
-                    // 常规的循环读取
-                    foreach ($this->readTheFile($file) as $data) {
-                        $this->send($data);
-                    }
-                } else {
-                    // 常规的循环读取
-                    foreach ($this->readTheFile($file) as $data) {
-                        $this->send($data, $filesize);
-                    }
+
+                // 常规的循环读取
+                foreach ($this->readTheFile($file) as $data) {
+                    $this->send($data, $filesize);
                 }
 
                 $type = null;

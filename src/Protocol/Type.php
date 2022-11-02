@@ -408,7 +408,7 @@ $types = [
       'pgm' => 'image/x-portable-graymap',
       'pgn' => 'application/x-chess-pgn',
       'pgp' => 'application/pgp-encrypted',
-      'php' => 'application/x-php',
+      'php' => 'text/plain', //'application/x-php',
       'php3' => 'application/x-php',
       'php4' => 'application/x-php',
       'pict' => 'image/x-pict',
@@ -692,7 +692,6 @@ $types = [
       'zip' => 'application/zip',
       'zoo' => 'application/x-zoo',
       // 自增的
-      'php' => 'application/x-httpd-php',
       'htaccess' => 'application/octet-stream',
       'db' => 'application/octet-stream',
       'sql' => 'application/x-sql',

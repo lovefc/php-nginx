@@ -17,6 +17,8 @@ class Http2 extends HttpInterface
         $this->server->on('close', [$this,"_onClose"]);
         /** 初始默认 **/
         $this->init();	
+		$this->requestScheme = 'http2';
+		$this->getHost($text);
     }
 	
     // 初始化参数
@@ -31,7 +33,6 @@ class Http2 extends HttpInterface
            //'Content-Encoding'=>'gzip',
            //'Vary'=>'Accept-Encoding'
         ];
-        $this->bodyLen = 0;
     }	
 
     // https解密
@@ -58,7 +59,7 @@ class Http2 extends HttpInterface
         set_error_handler(function () {
         });
 		
-        if ($client = stream_socket_accept($socket, 0)) {
+        if ($client = stream_socket_accept($socket, 0, $this->remoteAddress)) {
             $client = $this->https($client);
         }	
         restore_error_handler();

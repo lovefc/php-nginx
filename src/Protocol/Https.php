@@ -18,6 +18,7 @@ class Https extends HttpInterface
         /** 初始默认 **/
         $this->init();
 		$this->requestScheme = 'https';
+		$this->getHost($text);
     }
 
     // https解密
@@ -43,7 +44,7 @@ class Https extends HttpInterface
         // 第二个参数是无延迟
         set_error_handler(function () {
         });
-        if ($client = stream_socket_accept($socket, 0)) {
+        if ($client = stream_socket_accept($socket, 0, $this->remoteAddress)) {
             $client = $this->https($client);
         }
         restore_error_handler();
