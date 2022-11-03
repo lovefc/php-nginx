@@ -210,6 +210,7 @@ abstract class HttpInterface
             'HTTP_ACCEPT' => $_SERVER['Accept'],
             'HTTP_USER_AGENT' => $_SERVER['User-Agent']
         ];
+		//print_r($server);
         $text = $client->request($server, $content);
         $arr = explode("\r\n\r\n", $text);
         $header_text = $arr[0] ?? [];
@@ -243,6 +244,9 @@ abstract class HttpInterface
         }
         // 解析php
         if (strtolower($key) == 'fastcgi_pass') {
+			if(!is_file($_SERVER['SCRIPT_FILENAME'])){
+				return false;
+			}
             $tmp = explode(":", $value);
             $host = $tmp[0] ?? false;
             $port = $tmp[1] ?? false;
@@ -457,14 +461,12 @@ abstract class HttpInterface
     {
         $arr =parse_url($query);
         $path =  $arr['path'] ?? '';
-        // $_SERVER['PHP_SELF'] = $path;
         $query2 = $arr['query'] ?? '';
         if (substr($path, -1) == '/') {
             foreach ($this->defaultIndex as $index) {
                 $file = $this->documentRoot.$path.$index;
                 if (is_file($file)) {
                     $_SERVER['QUERY'] = $path.$index."?{$query2}";
-                    // $_SERVER['PHP_SELF'] = $path.$index;
                     return $file;
                 }
             }
@@ -520,12 +522,10 @@ abstract class HttpInterface
                 } else {
                     $filesize = filesize($file);
                 }
-
                 // 常规的循环读取
                 foreach ($this->readTheFile($file) as $data) {
                     $this->send($data, $filesize);
                 }
-
                 $type = null;
                 // 如果大于1000的文件，就重新搞
                 if (count($this->files)>1000) {
