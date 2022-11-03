@@ -33,11 +33,13 @@ abstract class HttpInterface
 
     public $types;
 
-    public $cacheTime = 10;
+    public $cacheTime = 0;
 
     public $files = [];
 
     public $isHand = [];
+	
+	public $outputStatus = false;
 
     public $documentRoot = null; // 主目录
 
@@ -124,7 +126,6 @@ abstract class HttpInterface
         $_SERVER['SCRIPT_NAME'] = $_SERVER['DOCUMENT_URI'] =  $_SERVER['PHP_SELF'] = $tmp[0] ?? '';
         $_SERVER['QUERY_STRING'] = $tmp[1] ?? '';
         $_SERVER['SCRIPT_FILENAME'] = $this->documentRoot.$_SERVER['PHP_SELF'];
-        //print_r($_SERVER);
     }
 
     // 解析query
@@ -149,26 +150,25 @@ abstract class HttpInterface
     {
         $this->fd = $fd;
         $this->init();
+		$this->outputStatus = false;
+		clearstatcache(); // 删除文件判断缓存
         if ($this->handleData($data)) {
             $this->setEnv($_SERVER['Host']);
             $query = IS_WIN ===true ? iconv('UTF-8', 'GB2312', $_SERVER['QUERY']) : $_SERVER['QUERY'];
-            clearstatcache();
             $file = $this->getDefaultIndex($query);
             $this->explodeQuery();
-            $this->analysisLocation($_SERVER['PHP_SELF']);
-            $status = $this->staticDir($file);
-            if (!$status) {
-                $status = ($this->displayCatalogue=='on') ? $this->autoIndex($file) : false;
-                if ($status==false) {
-                    $status2 = false;
+            !$this->outputStatus && $this->analysisLocation($_SERVER['PHP_SELF']);
+            !$this->outputStatus && $this->staticDir($file);		
+			!$this->outputStatus && $this->displayCatalogue=='on' && $this->autoIndex($file);
+			!$this->outputStatus && $this->page404();
+			/*
                     if ($this->errorPage!='') {
                         $status2 = $this->staticDir($this->errorPage);
                     }
                     if ($status2==false) {
                         $this->page404();
                     }
-                }
-            }
+			*/
         }
     }
 
@@ -178,6 +178,7 @@ abstract class HttpInterface
         $data = '<html><head><title>404 Not Found</title></head><body><center><h1>404 Not Found</h1></center><hr><center>php-nginx/0.01</center></body></html>';
         $this->setHeader(404);
         $this->send($data);
+		$this->outputStatus = true;
     }
 
 
@@ -227,9 +228,55 @@ abstract class HttpInterface
 		$this->setHeader($code, $this->headers);
         $this->send($content);
 		$server = [];
-        return true;
+		$this->outputStatus = true;
     }
-
+    
+	// 换算时间
+	/*
+       expires 30s;   #缓存30秒
+       expires 30m;  #缓存30分钟   
+       expires 2h;     #缓存2小时
+       expires 30d;    #缓存30天	
+	*/
+    public function timeConversion($text){
+		if(empty($text)) return 0;
+		$str = strtolower(substr($text, -1));
+		$time = substr($text,0,strlen($text)-1);
+		switch($str){
+			case 's':
+			    $time = $time;
+			break;			
+			case 'm':
+			    $time = 60*$time;
+			break;
+			case 'h':
+			    $time = 3600*$time;
+			break;   
+			case 'd':
+			    $time = 86400*$time;
+			break;
+            default:
+                $time =  $text;			
+		}
+		return $time;
+	}
+	
+	// 缓存文件
+	public function cacheFile($cacheTime){
+        $since = $_SERVER['If-Modified-Since'] ?? null;
+		$time = time();
+        if ($since) {
+            $sinceTime = strtotime($since);
+            if (($sinceTime + $cacheTime) >= $time) {
+                $this->sendCode(304, ['Last-Modified'=>date('r'), 'Cache-Control'=>'max-age='.$cacheTime]);
+				$this->outputStatus = true;
+				return true;
+            }
+        }
+		return false;
+	}
+	
+	// 解析参数
     public function analysisLocationValue($text)
     {
         $text = str_replace(";", '', $text);
@@ -238,10 +285,16 @@ abstract class HttpInterface
         $value = $arrs[1] ?? '';
         // 缓存
         if (strtolower($key) == 'expires') {
+			$time = $this->timeConversion($value);
+			if($this->cacheFile($time)){
+				return true;
+			}			
             $lastTime = date('r');
-            $heads = [];
-            $this->addHeaders = array_merge($heads, $this->addHeaders);
+			//'Expires'=> date('r',time() + 7200), 'Age'=>7200,'Accept-Ranges'=>'bytes','Etag'=>md5($_SERVER['SCRIPT_FILENAME']),
+            $heads = ['Last-Modified'=>$lastTime, 'Cache-Control'=>'max-age='.$time];
+            $this->addHeaders = array_merge($this->addHeaders, $heads);
         }
+		
         // 解析php
         if (strtolower($key) == 'fastcgi_pass') {
 			if(!is_file($_SERVER['SCRIPT_FILENAME'])){
@@ -253,9 +306,8 @@ abstract class HttpInterface
             if (!$host || !$port) {
                 return false;
             }
-            return $this->fastcgiPHP($host, $port);
+            $this->fastcgiPHP($host, $port);
         }
-        return false;
     }
 
     // 解析参数
@@ -306,7 +358,7 @@ abstract class HttpInterface
         $html .= '</body></html>';
         $this->setHeader(200, ['Content-Type'=>'text/html']);
         $this->send($html);
-        return true;
+	    $this->outputStatus = true;
     }
 
     // 关闭
@@ -333,7 +385,16 @@ abstract class HttpInterface
         $response .= $this->separator;
         return $this->protocolHeader . " ". $this->getHttpCodeValue($code) . $this->separator . $response;
     }
-
+	
+    // 发送状态码
+    public function sendCode($code, $headers=[])
+    {
+		$this->setHeader($code, $headers);
+        $response =  $this->_getHeader($code, $headers);
+        $response = stripcslashes($response);
+        $this->server->send($this->fd, $response);
+    }
+	
     // 设置文件头
     public function setHeader($code, $headers = '')
     {
@@ -359,7 +420,6 @@ abstract class HttpInterface
                 return false;
             }
         }
-
         // gzip压缩
         if (isset($this->headers['Content-Encoding'])  && $this->headers['Content-Encoding'] == 'gzip') {
             $this->body = \gzencode($this->body);
@@ -386,14 +446,6 @@ abstract class HttpInterface
         //2022/10/19 11:05:53 [warn] 34572#24684: conflicting server name "cs.com" on 0.0.0.0:80, ignored
     }
 
-    // 发送状态码
-    public function sendCode($code, $headers=[])
-    {
-        $response =  $this->_getHeader($code, $headers);
-        $response = stripcslashes($response);
-        $this->server->send($this->fd, $response);
-    }
-
     // 获取状态码-根据code找值
     public function getHttpCodeValue($code)
     {
@@ -416,7 +468,6 @@ abstract class HttpInterface
     public function handleData($data)
     {
         //有文件头，来处理head头
-        //echo $data.PHP_EOL;
         if (stripos($data, $this->protocolHeader)) {
             $data2 = explode("\r\n\r\n", $data)[0];
             $header = explode("\r\n", $data2);
@@ -430,6 +481,10 @@ abstract class HttpInterface
                 $v2 = substr($v, $v_num);
                 $head[trim($head2[0])] = trim($v2);
             }
+			//如果没有这个值
+			if(!isset($head['If-Modified-Since']) && isset($_SERVER['If-Modified-Since'])){
+				unset($_SERVER['If-Modified-Since']);
+			}
             $_SERVER = array_merge($_SERVER, $head);
             $_SERVER['METHOD'] = $_SERVER['REQUEST_METHOD'] = $method;
             $_SERVER['QUERY'] = $_SERVER['REQUEST_URI'] = urldecode($query);
@@ -456,7 +511,8 @@ abstract class HttpInterface
         }
         fclose($handle);
     }
-
+    
+	// 获取索引文件路径
     public function getDefaultIndex($query)
     {
         $arr =parse_url($query);
@@ -485,32 +541,14 @@ abstract class HttpInterface
             $ext = $this->getExt($file);
             $connect_type = $type[$ext] ?? null;
             $lastTime = date('r');
+			$time = time();
             $is_cache = 0;
             if ($connect_type) {
-                // 获取文件修改时间
-                $fileTime = date('r', filemtime($file));
-                $since = $_SERVER['If-Modified-Since'] ?? null;
-                if ($since) {
-                    $sinceTime = strtotime($since);
-                    // 如果设置了缓存时间
-                    //if ($this->cacheTime!=0) {
-                    //更新时间 大于等于 现在时间减去缓存时间
-                    if ($sinceTime >= (time() - 7200)) {
-                        $is_cache = 1;
-                    }
-                    //}
-
-                    // 如果文件的最后时间小于当前时间
-                    if ($sinceTime < time() && ($is_cache ==1)) {
-                        $this->sendCode(304);
-                        $is_cache = 1;
-                    }
-                }
-                // 'Expires'=> date('r',time() + 7200), 'Age'=>7200,'Accept-Ranges'=>'bytes','Etag'=>md5($file.$fileTime), 'Last-Modified'=>$lastTime, 'Cache-Control'=>'max-age=7200'
                 $headers = ['Content-Type'=>$connect_type,  'Accept-Ranges'=>'bytes', 'Data'=>$lastTime];
                 if ($this->gzip == 'on' && in_array($connect_type, $this->gzipTypes)) {
                     $headers['Content-Encoding']='gzip';//deflate';
                 }
+				
                 $this->setHeader(200, $headers);
             } else {
                 $headers = ["Content-Type"=>"application/octet-stream","Content-Transfer-Encoding"=>"Binary", "Content-disposition"=>"attachment","filename"=>basename($file)];
@@ -531,10 +569,9 @@ abstract class HttpInterface
                 if (count($this->files)>1000) {
                     $this->files = [];
                 }
-                return true;
+				$this->outputStatus = true;
             }
         }
-        return false;
     }
 
     // 事件绑定
