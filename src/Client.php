@@ -14,6 +14,7 @@ class ForbiddenException extends \Exception {}
 /**
  * PHP FastCGI 客户端
  * 来源：https://github.com/adoy/PHP-FastCGI-Client
+ * 这个源码我改过一些东西，为了让它适应更高的php版本
  */
 class Client {
 	const VERSION_1 = 1;
@@ -205,6 +206,7 @@ class Client {
 	 * Create a connection to the FastCGI application
 	 */
 	private function connect() {
+		set_error_handler(function () {},E_ALL);
 		if ( ! $this->_sock ) {
 			if ( $this->_persistentSocket ) {
 				$this->_sock = pfsockopen( $this->_host, $this->_port, $errno, $errstr, $this->_connectTimeout / 1000 );
@@ -218,6 +220,7 @@ class Client {
 				throw new \Exception( 'Unable to set timeout on socket' );
 			}
 		}
+		restore_error_handler();
 	}
 
 	/**
@@ -384,7 +387,7 @@ class Client {
 	 */
 	public function request( array $params, $stdin ) {
 		$id = $this->async_request( $params, $stdin );
-
+        if(empty($id)) return null;
 		return $this->wait_for_response( $id );
 	}
 
@@ -405,7 +408,12 @@ class Client {
 	 * @return Integer
 	 */
 	public function async_request( array $params, $stdin ) {
-		$this->connect();
+		try{
+		    $this->connect();
+		}catch (\Exception $e) {
+            echo $e->getMessage();
+			return null;
+        }
 		// Pick random number between 1 and max 16 bit unsigned int 65535
 		$id = mt_rand( 1, ( 1 << 16 ) - 1 );
 		// Using persistent sockets implies you want them keept alive by server!

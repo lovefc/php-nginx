@@ -64,6 +64,8 @@ abstract class HttpInterface
     public $setenvStatus = 0;
 
     public $remoteAddress;
+	
+	public $clientBody = '';
 
     // 事件
     private $events = [
@@ -160,7 +162,7 @@ abstract class HttpInterface
             !$this->outputStatus && $this->analysisLocation($_SERVER['PHP_SELF']);
             !$this->outputStatus && $this->staticDir($file);		
 			!$this->outputStatus && $this->displayCatalogue=='on' && $this->autoIndex($file);
-			!$this->outputStatus && $this->page404();
+			!$this->outputStatus && $this->errorPageShow(404);
 			/*
                     if ($this->errorPage!='') {
                         $status2 = $this->staticDir($this->errorPage);
@@ -173,10 +175,11 @@ abstract class HttpInterface
     }
 
     // 错误页面
-    public function page404()
+    public function errorPageShow($code)
     {
-        $data = '<html><head><title>404 Not Found</title></head><body><center><h1>404 Not Found</h1></center><hr><center>php-nginx/0.01</center></body></html>';
-        $this->setHeader(404);
+		$text = $this->getHttpCodeValue($code);
+        $data = '<html><head><title>'.$text.'</title></head><body><center><h1>'.$text.'</h1></center><hr><center>php-nginx/0.01</center></body></html>';
+        $this->setHeader($code);
         $this->send($data);
 		$this->outputStatus = true;
     }
@@ -185,14 +188,14 @@ abstract class HttpInterface
     public function fastcgiPHP($host = '127.0.0.1', $port = '9000')
     {
         $client = new \FC\Client($host, $port);
-        $content = '';
+        $content = $this->clientBody;
         //$php_value = "auto_prepend_file = php://input";
         //$filepath  = '/home/wwwroot/php-static/2.php';
         $server = [
             'GATEWAY_INTERFACE' => 'FastCGI/1.0',
             'SERVER_SOFTWARE' => 'php/fcgiclient',
             'SERVER_PROTOCOL' => 'HTTP/1.1',
-            'CONTENT_TYPE' => 'application/x-www-form-urlencoded',
+            'CONTENT_TYPE' => $_SERVER['Content-Type'] ?? '',
             'REQUEST_METHOD' => $_SERVER['REQUEST_METHOD'],
             'SCRIPT_FILENAME' => $_SERVER['SCRIPT_FILENAME'],
             'REMOTE_ADDR' => $_SERVER['REMOTE_ADDR'],
@@ -200,22 +203,33 @@ abstract class HttpInterface
             'SERVER_ADDR' => $_SERVER['SERVER_ADDR'],
             'SERVER_PORT' => $_SERVER['SERVER_PORT'],
             'SERVER_NAME' => $_SERVER['SERVER_NAME'],
-            //'CONTENT_LENGTH' => strlen($content),
+            'CONTENT_LENGTH' => $_SERVER['Content-Length'] ?? '',
             'QUERY_STRING' => $_SERVER['QUERY_STRING'],
-            'HTTP_ACCEPT_LANGUAGE' => $_SERVER['Accept-Language'],
-            'HTTP_ACCEPT_ENCODING' => $_SERVER['Accept-Encoding'],
-            'HTTP_SEC_FETCH_DEST' => $_SERVER['Sec-Fetch-Dest'],
-            'HTTP_SEC_FETCH_USER' => $_SERVER['Sec-Fetch-User'],
-            'HTTP_SEC_FETCH_MODE' => $_SERVER['Sec-Fetch-Mode'],
-            'HTTP_SEC_FETCH_SITE' => $_SERVER['Sec-Fetch-Site'],
-            'HTTP_ACCEPT' => $_SERVER['Accept'],
-            'HTTP_USER_AGENT' => $_SERVER['User-Agent']
+            'HTTP_ACCEPT_LANGUAGE' => $_SERVER['Accept-Language'] ?? '',
+            'HTTP_ACCEPT_ENCODING' => $_SERVER['Accept-Encoding'] ?? '',
+            'HTTP_SEC_FETCH_DEST' => $_SERVER['Sec-Fetch-Dest'] ?? '',
+            'HTTP_SEC_FETCH_USER' => $_SERVER['Sec-Fetch-User'] ?? '',
+            'HTTP_SEC_FETCH_MODE' => $_SERVER['Sec-Fetch-Mode'] ?? '',
+            'HTTP_SEC_FETCH_SITE' => $_SERVER['Sec-Fetch-Site'] ?? '',
+            'HTTP_ACCEPT' => $_SERVER['Accept'] ?? '',
+            'HTTP_USER_AGENT' => $_SERVER['User-Agent'] ?? '',
         ];
-		//print_r($server);
+	    $client->setConnectTimeout(100);
+	    $client->setReadWriteTimeout(1000);
         $text = $client->request($server, $content);
+		if(empty($text)){
+			$this->errorPageShow(502);
+			$this->outputStatus = true;
+			return;
+		}
         $arr = explode("\r\n\r\n", $text);
         $header_text = $arr[0] ?? [];
         $content = $arr[1] ?? '';
+		if(trim($content) == 'File not found.'){
+			$this->errorPageShow(404);
+			$this->outputStatus = true;
+			return;			
+		} 
         $headers = explode("\n", $header_text);
         foreach ($headers as $v) {
             $head2  = explode(":", $v);
@@ -228,6 +242,7 @@ abstract class HttpInterface
 		$this->setHeader($code, $this->headers);
         $this->send($content);
 		$server = [];
+		$this->clientBody = '';
 		$this->outputStatus = true;
     }
     
@@ -468,8 +483,11 @@ abstract class HttpInterface
     public function handleData($data)
     {
         //有文件头，来处理head头
+		//echo $data.PHP_EOL;
         if (stripos($data, $this->protocolHeader)) {
-            $data2 = explode("\r\n\r\n", $data)[0];
+			$buffer = explode("\r\n\r\n", $data);
+            $data2 = $buffer[0] ?? '';
+			$this->clientBody = $buffer[1] ?? '';			
             $header = explode("\r\n", $data2);
             list($method, $query, $protocolHeader) = explode(" ", $header[0]);
             unset($header[0]);
@@ -481,6 +499,7 @@ abstract class HttpInterface
                 $v2 = substr($v, $v_num);
                 $head[trim($head2[0])] = trim($v2);
             }
+			//print_r($head);
 			//如果没有这个值
 			if(!isset($head['If-Modified-Since']) && isset($_SERVER['If-Modified-Since'])){
 				unset($_SERVER['If-Modified-Since']);
@@ -488,7 +507,7 @@ abstract class HttpInterface
             $_SERVER = array_merge($_SERVER, $head);
             $_SERVER['METHOD'] = $_SERVER['REQUEST_METHOD'] = $method;
             $_SERVER['QUERY'] = $_SERVER['REQUEST_URI'] = urldecode($query);
-            $head = $head2 = '';
+            $head = $head2 = $buffer =  $data = '';
             return true;
         }
         return false;
