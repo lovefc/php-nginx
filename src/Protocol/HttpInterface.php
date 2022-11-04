@@ -247,12 +247,6 @@ abstract class HttpInterface
     }
     
 	// 换算时间
-	/*
-       expires 30s;   #缓存30秒
-       expires 30m;  #缓存30分钟   
-       expires 2h;     #缓存2小时
-       expires 30d;    #缓存30天	
-	*/
     public function timeConversion($text){
 		if(empty($text)) return 0;
 		$str = strtolower(substr($text, -1));
