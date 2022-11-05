@@ -106,8 +106,8 @@ class Client {
 	}
 
 	/**
-	 * Define whether or not the FastCGI application should keep the connection
-	 * alive at the end of a request
+	 * 设置FastCGI应用程序是否应该保持连接
+	 * 请求结束时保持活动状态
 	 *
 	 * @param Boolean $b true if the connection should stay alive, false otherwise
 	 */
@@ -119,7 +119,7 @@ class Client {
 	}
 
 	/**
-	 * Get the keep alive status
+	 * 获取长连接状态
 	 *
 	 * @return Boolean true if the connection should stay alive, false otherwise
 	 */
@@ -128,8 +128,8 @@ class Client {
 	}
 
 	/**
-	 * Define whether or not PHP should attempt to re-use sockets opened by previous
-	 * request for efficiency
+	 * 设置PHP是否应该尝试重用以前打开的套接字
+	 * 对效率的要求
 	 *
 	 * @param Boolean $b true if persistent socket should be used, false otherwise
 	 */
@@ -142,7 +142,7 @@ class Client {
 	}
 
 	/**
-	 * Get the pesistent socket status
+	 * 获取是否打开复用套接字
 	 *
 	 * @return Boolean true if the socket should be persistent, false otherwise
 	 */
@@ -151,7 +151,7 @@ class Client {
 	}
 
 	/**
-	 * Set the connect timeout
+	 * 设置连接超时时长
 	 *
 	 * @param Integer  number of milliseconds before connect will timeout
 	 */
@@ -160,7 +160,7 @@ class Client {
 	}
 
 	/**
-	 * Get the connect timeout
+	 * 获取连接超时定义PHP是否应该尝试重用以前打开的套接字
 	 *
 	 * @return Integer  number of milliseconds before connect will timeout
 	 */
@@ -169,7 +169,7 @@ class Client {
 	}
 
 	/**
-	 * Set the read/write timeout
+	 * 设置读写超时时长
 	 *
 	 * @param Integer  number of milliseconds before read or write call will timeout
 	 */
@@ -179,7 +179,7 @@ class Client {
 	}
 
 	/**
-	 * Get the read timeout
+	 * 获取读写超时时长
 	 *
 	 * @return Integer  number of milliseconds before read will timeout
 	 */
@@ -188,7 +188,8 @@ class Client {
 	}
 
 	/**
-	 * Helper to avoid duplicating milliseconds to secs/usecs in a few places
+	 * 帮助避免在几个地方复制毫秒到秒/秒
+	 * 获取设置的时长随机
 	 *
 	 * @param Integer millisecond timeout
 	 *
@@ -203,7 +204,7 @@ class Client {
 	}
 
 	/**
-	 * Create a connection to the FastCGI application
+	 * 创建到FastCGI应用程序的连接
 	 */
 	private function connect() {
 		set_error_handler(function () {},E_ALL);
@@ -224,7 +225,7 @@ class Client {
 	}
 
 	/**
-	 * Build a FastCGI packet
+	 * 构建一个FastCGI包
 	 *
 	 * @param Integer $type Type of the packet
 	 * @param String $content Content of the packet
@@ -245,7 +246,7 @@ class Client {
 	}
 
 	/**
-	 * Build an FastCGI Name value pair
+	 * 构建一个FastCGI名称值对
 	 *
 	 * @param String $name Name
 	 * @param String $value Value
@@ -276,7 +277,7 @@ class Client {
 	}
 
 	/**
-	 * Read a set of FastCGI Name value pairs
+	 * 读取一组FastCGI名称/值对
 	 *
 	 * @param String $data Data containing the set of FastCGI NVPair
 	 *
@@ -311,7 +312,7 @@ class Client {
 	}
 
 	/**
-	 * Decode a FastCGI Packet
+	 * 解码FastCGI数据包
 	 *
 	 * @param String $data String containing all the packet
 	 *
@@ -330,7 +331,7 @@ class Client {
 	}
 
 	/**
-	 * Read a FastCGI Packet
+	 * 读取FastCGI数据包
 	 *
 	 * @return array
 	 */
@@ -356,7 +357,7 @@ class Client {
 	}
 
 	/**
-	 * Get Informations on the FastCGI application
+	 * 获取FastCGI应用程序的信息
 	 *
 	 * @param array $requestedInfo information to retrieve
 	 *
@@ -378,7 +379,7 @@ class Client {
 	}
 
 	/**
-	 * Execute a request to the FastCGI application
+	 * 执行对FastCGI应用程序的请求
 	 *
 	 * @param array $params Array of parameters
 	 * @param String $stdin Content
@@ -388,13 +389,20 @@ class Client {
 	public function request( array $params, $stdin ) {
 		$id = $this->async_request( $params, $stdin );
         if(empty($id)) return null;
-		return $this->wait_for_response( $id );
+		$info = '';
+		try{
+		    $info = $this->wait_for_response( $id );
+        }catch (\Exception $e) {
+            //echo $e->getMessage();
+			return null;
+        }		
+		return $info;
 	}
 
 	/**
-	 * Execute a request to the FastCGI application asyncronously
+	 * 异步执行对FastCGI应用程序的请求
 	 *
-	 * This sends request to application and returns the assigned ID for that request.
+	 * 这将向应用程序发送请求，并返回为该请求分配的ID。
 	 *
 	 * You should keep this id for later use with wait_for_response(). Ids are chosen randomly
 	 * rather than seqentially to guard against false-positives when using persistent sockets.
@@ -452,7 +460,7 @@ class Client {
 	}
 
 	/**
-	 * Blocking call that waits for response to specific request
+	 * 阻塞呼叫，等待对特定请求的响应
 	 *
 	 * @param Integer $requestId
 	 * @param Integer $timeoutMs [optional] the number of milliseconds to wait. Defaults to the ReadWriteTimeout value set.
@@ -463,23 +471,26 @@ class Client {
 		if ( ! isset( $this->_requests[ $requestId ] ) ) {
 			throw new \Exception( 'Invalid request id given' );
 		}
-		// If we already read the response during an earlier call for different id, just return it
+		// 如果我们已经在先前对不同id的调用中读取了响应，只需返回它
 		if ( $this->_requests[ $requestId ]['state'] == self::REQ_STATE_OK
 		     || $this->_requests[ $requestId ]['state'] == self::REQ_STATE_ERR
 		) {
 			return $this->_requests[ $requestId ]['response'];
 		}
 		if ( $timeoutMs > 0 ) {
-			// Reset timeout on socket for now
+			// 暂时重置套接字超时
 			$this->set_ms_timeout( $timeoutMs );
 		} else {
 			$timeoutMs = $this->_readWriteTimeout;
 		}
-		// Need to manually check since we might do several reads none of which timeout themselves
-		// but still not get the response requested
+		// 需要手动检查，因为我们可能会进行多次读取，但每次读取都不会超时
+		// 但是仍然没有得到请求的响应
 		$startTime = microtime( true );
 		do {
 			$resp = $this->readPacket();
+			if(!isset($resp['type'])){
+				break;
+			}
 			if ( $resp['type'] == self::STDOUT || $resp['type'] == self::STDERR ) {
 				if ( $resp['type'] == self::STDERR ) {
 					$this->_requests[ $resp['requestId'] ]['state'] = self::REQ_STATE_ERR;
@@ -493,26 +504,24 @@ class Client {
 				}
 			}
 			if ( microtime( true ) - $startTime >= ( $timeoutMs * 1000 ) ) {
-				// Reset
+				// 重置
 				$this->set_ms_timeout( $this->_readWriteTimeout );
 				throw new \Exception( 'Timed out' );
 			}
 		} while ( $resp );
 		if ( ! is_array( $resp ) ) {
 			$info = stream_get_meta_data( $this->_sock );
-			// We must reset timeout but it must be AFTER we get info
-			$this->set_ms_timeout( $this->_readWriteTimeout );
+			//我们必须重置超时，但必须是在我们获得信息之后
+			$this->set_ms_timeout( $this->_readWriteTimeout );				
 			if ( $info['timed_out'] ) {
 				throw new TimedOutException( 'Read timed out' );
 			}
-			if ( $info['unread_bytes'] == 0
-			     && $info['blocked']
-			     && $info['eof'] ) {
+			if ( $info['unread_bytes'] == 0 && $info['blocked'] && $info['eof'] ) {
 				throw new ForbiddenException( 'Not in white list. Check listen.allowed_clients.' );
 			}
 			throw new \Exception( 'Read failed' );
 		}
-		// Reset timeout
+		// 重置超时
 		$this->set_ms_timeout( $this->_readWriteTimeout );
 		switch ( ord( $resp['content'][4] ) ) {
 			case self::CANT_MPX_CONN:

@@ -66,6 +66,8 @@ abstract class HttpInterface
     public $remoteAddress;
 	
 	public $clientBody = '';
+	
+	private $fpmClient;
 
     // 事件
     private $events = [
@@ -163,38 +165,67 @@ abstract class HttpInterface
             !$this->outputStatus && $this->staticDir($file);		
 			!$this->outputStatus && $this->displayCatalogue=='on' && $this->autoIndex($file);
 			!$this->outputStatus && $this->errorPageShow(404);
-			/*
-                    if ($this->errorPage!='') {
-                        $status2 = $this->staticDir($this->errorPage);
-                    }
-                    if ($status2==false) {
-                        $this->page404();
-                    }
-			*/
         }
     }
 
     // 错误页面
     public function errorPageShow($code)
     {
+		if($this->errorPage){ 
+		$this->staticDir($this->errorPage);
+		}else{
 		$text = $this->getHttpCodeValue($code);
         $data = '<html><head><title>'.$text.'</title></head><body><center><h1>'.$text.'</h1></center><hr><center>php-nginx/0.01</center></body></html>';
         $this->setHeader($code);
         $this->send($data);
+		}
 		$this->outputStatus = true;
     }
 
-
+    public function snowFlakeID()
+	{
+        //假设一个机器id
+        $machineId = 5219930613;
+		//41bit timestamp(毫秒)
+		$time = floor(microtime(true) * 1000);
+		//0bit 未使用
+		$suffix = 0;
+		//datacenterId  添加数据的时间
+		$base = decbin(pow(2, 40) - 1 + $time);
+		//workerId  机器ID
+		$machineid = decbin(pow(2, 9) - 1 + $machineId);
+		//毫秒类的计数
+		$random = mt_rand(1, pow(2, 11) - 1);
+		$random = decbin(pow(2, 11) - 1 + $random);
+		//拼装所有数据
+		$base64 = $suffix . $base . $machineid . $random;
+		//将二进制转换int
+		$base64 = bindec($base64);
+		$id = sprintf('%.0f', $base64);
+		return $id;
+    }
+	
     public function fastcgiPHP($host = '127.0.0.1', $port = '9000')
     {
-        $client = new \FC\Client($host, $port);
+		/*
+		$client = $this->fpmClient;
+        if(!$client){
+			$this->fpmClient = $client = new \FC\Client($host, $port);
+		}
+		*/
+		$client = new \FC\Client($host, $port);
         $content = $this->clientBody;
+		//echo $content;
         //$php_value = "auto_prepend_file = php://input";
         //$filepath  = '/home/wwwroot/php-static/2.php';
         $server = [
             'GATEWAY_INTERFACE' => 'FastCGI/1.0',
             'SERVER_SOFTWARE' => 'php/fcgiclient',
             'SERVER_PROTOCOL' => 'HTTP/1.1',
+			'HTTP_CONTENT_TYPE'=>$_SERVER['Content-Type'] ?? '',
+			'HTTP_CONTENT_LENGTH'=>$_SERVER['Content-Length'] ?? '',
+            'HTTP_HOST' => $_SERVER['SERVER_NAME'] ?? '',
+			'HTTP_POSTMAN_TOKEN' => $this->snowFlakeID(),
             'CONTENT_TYPE' => $_SERVER['Content-Type'] ?? '',
             'REQUEST_METHOD' => $_SERVER['REQUEST_METHOD'],
             'SCRIPT_FILENAME' => $_SERVER['SCRIPT_FILENAME'],
@@ -215,7 +246,8 @@ abstract class HttpInterface
             'HTTP_USER_AGENT' => $_SERVER['User-Agent'] ?? '',
         ];
 	    $client->setConnectTimeout(100);
-	    $client->setReadWriteTimeout(1000);
+	    $client->setReadWriteTimeout(500);
+		//$client->setKeepAlive(true);
         $text = $client->request($server, $content);
 		if(empty($text)){
 			$this->errorPageShow(502);
@@ -242,7 +274,7 @@ abstract class HttpInterface
 		$this->setHeader($code, $this->headers);
         $this->send($content);
 		$server = [];
-		$this->clientBody = '';
+		$this->clientBody = $client = '';
 		$this->outputStatus = true;
     }
     
@@ -477,11 +509,13 @@ abstract class HttpInterface
     public function handleData($data)
     {
         //有文件头，来处理head头
-		//echo $data.PHP_EOL;
+		echo $data.PHP_EOL;
         if (stripos($data, $this->protocolHeader)) {
 			$buffer = explode("\r\n\r\n", $data);
+			print_r($buffer);
             $data2 = $buffer[0] ?? '';
-			$this->clientBody = $buffer[1] ?? '';			
+			unset($buffer[0]);
+			$this->clientBody = implode("\r\n\r\n",$buffer);			
             $header = explode("\r\n", $data2);
             list($method, $query, $protocolHeader) = explode(" ", $header[0]);
             unset($header[0]);
@@ -493,7 +527,6 @@ abstract class HttpInterface
                 $v2 = substr($v, $v_num);
                 $head[trim($head2[0])] = trim($v2);
             }
-			//print_r($head);
 			//如果没有这个值
 			if(!isset($head['If-Modified-Since']) && isset($_SERVER['If-Modified-Since'])){
 				unset($_SERVER['If-Modified-Since']);

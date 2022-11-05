@@ -2,6 +2,12 @@ php php-nginx start
 php php-nginx stop
 php php-nginx reload
 
+whereis php-fpm // 查找fpm位置
+
+
+//查找端口
+netstat -apn | grep 9000 
+
 #win杀掉进程
 
 // 查找进程
@@ -14,3 +20,5 @@ taskkill /T /F /PID 66572
 taskkill /T /F /im "php-cgi"
 
 taskkill /T /F /im php-cgi-spawner.exe
+
+

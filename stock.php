@@ -535,7 +535,7 @@ $filepath  = '/home/wwwroot/php-static/2.php';
 echo $client->request(
 	array(
 		'GATEWAY_INTERFACE' => 'FastCGI/1.0',
-		'REQUEST_METHOD' => 'GET',
+		'REQUEST_METHOD' => 'POST',
 		'SCRIPT_FILENAME' => $filepath,
 		'SERVER_SOFTWARE' => 'php/fcgiclient',
 		'REMOTE_ADDR' => '127.0.0.1',
@@ -547,7 +547,7 @@ echo $client->request(
 		'CONTENT_TYPE' => 'application/x-www-form-urlencoded',
 		'CONTENT_LENGTH' => strlen($content),
 		'HOME' => '1111',
-		//'QUERY_STRING' => $content 这一段是GET数据
+		'QUERY_STRING' => $content //这一段是GET数据
 		
 		//'PHP_VALUE'         => $php_value,
 	),
