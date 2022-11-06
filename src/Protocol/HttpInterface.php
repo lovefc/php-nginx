@@ -68,6 +68,8 @@ abstract class HttpInterface
 	public $clientBody = '';
 	
 	private $fpmClient;
+	
+	private $firstRead = false; // 首次读取
 
     // 事件
     private $events = [
@@ -248,6 +250,7 @@ abstract class HttpInterface
 	    $client->setConnectTimeout(100);
 	    $client->setReadWriteTimeout(500);
 		//$client->setKeepAlive(true);
+		//file_put_contents(PATH."/2.jpg", $content);
         $text = $client->request($server, $content);
 		if(empty($text)){
 			$this->errorPageShow(502);
@@ -499,20 +502,14 @@ abstract class HttpInterface
 		return array_search($value,HttpCode::$STATUS_CODES);
     }	
 
-    // 获取http方法
-    public function getHttpMethod($method)
-    {
-        return in_array($method, HttpCode::$METHODS[$method]) ?? false;
-    }
-
     // 处理数据
     public function handleData($data)
     {
         //有文件头，来处理head头
-		echo $data.PHP_EOL;
-        if (stripos($data, $this->protocolHeader)) {
+		//echo "数据".$data.PHP_EOL.PHP_EOL.PHP_EOL;
+        //if (stripos($data, $this->protocolHeader)) {
+		if(!$this->firstRead){
 			$buffer = explode("\r\n\r\n", $data);
-			print_r($buffer);
             $data2 = $buffer[0] ?? '';
 			unset($buffer[0]);
 			$this->clientBody = implode("\r\n\r\n",$buffer);			
@@ -534,9 +531,15 @@ abstract class HttpInterface
             $_SERVER = array_merge($_SERVER, $head);
             $_SERVER['METHOD'] = $_SERVER['REQUEST_METHOD'] = $method;
             $_SERVER['QUERY'] = $_SERVER['REQUEST_URI'] = urldecode($query);
-            $head = $head2 = $buffer =  $data = '';
-            return true;
-        }
+            $head = $head2 = $buffer = '';
+			$this->firstRead = 1;
+        }else{
+			$this->clientBody .= $data;		
+		}
+		if(strlen($this->clientBody) == $_SERVER['Content-Length']){
+			$this->firstRead = 0;
+			return true;
+		}
         return false;
     }
 
