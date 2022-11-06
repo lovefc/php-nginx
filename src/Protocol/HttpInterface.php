@@ -250,7 +250,6 @@ abstract class HttpInterface
 	    $client->setConnectTimeout(100);
 	    $client->setReadWriteTimeout(500);
 		//$client->setKeepAlive(true);
-		//file_put_contents(PATH."/2.jpg", $content);
         $text = $client->request($server, $content);
 		if(empty($text)){
 			$this->errorPageShow(502);
@@ -506,9 +505,8 @@ abstract class HttpInterface
     public function handleData($data)
     {
         //有文件头，来处理head头
-		//echo "数据".$data.PHP_EOL.PHP_EOL.PHP_EOL;
         //if (stripos($data, $this->protocolHeader)) {
-		if(!$this->firstRead){
+		if(!$this->firstRead && stripos($data, $this->protocolHeader)){
 			$buffer = explode("\r\n\r\n", $data);
             $data2 = $buffer[0] ?? '';
 			unset($buffer[0]);
@@ -535,6 +533,11 @@ abstract class HttpInterface
 			$this->firstRead = 1;
         }else{
 			$this->clientBody .= $data;		
+		}
+		
+		if(!isset($_SERVER['Content-Length'])){
+			$this->firstRead = 0;
+			return true;
 		}
 		if(strlen($this->clientBody) == $_SERVER['Content-Length']){
 			$this->firstRead = 0;

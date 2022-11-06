@@ -9,7 +9,7 @@ ini_set("display_errors", "On");//打开错误提示
 
 ini_set("error_reporting", E_ALL);//显示所有错误
 
-ini_set('memory_limit', '128M');//定义使用内存
+ini_set('memory_limit', '512M');//定义使用内存
 
 // 定义时区
 !defined('TIMEZONE') ? date_default_timezone_set('PRC') : date_default_timezone_set(TIMEZONE);
