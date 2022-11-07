@@ -134,10 +134,7 @@ abstract class HttpInterface
         $address = explode(":", $this->remoteAddress);
         $_SERVER['REMOTE_ADDR'] = $address[0] ?? '';
         $_SERVER['REMOTE_PORT'] = $address[1] ?? '';
-        $tmp = explode("?", $_SERVER['QUERY']);
-        $_SERVER['SCRIPT_NAME'] = $_SERVER['DOCUMENT_URI'] =  $_SERVER['PHP_SELF'] = $tmp[0] ?? '';
-        $_SERVER['QUERY_STRING'] = $tmp[1] ?? '';
-        $_SERVER['SCRIPT_FILENAME'] = $this->documentRoot.$_SERVER['PHP_SELF'];
+		$this->explodeQuery();
     }
 
     // 解析query
@@ -219,6 +216,9 @@ abstract class HttpInterface
             'SERVER_NAME' => $_SERVER['SERVER_NAME'],
             'CONTENT_LENGTH' => $_SERVER['Content-Length'] ?? '',
             'QUERY_STRING' => $_SERVER['QUERY_STRING'],
+			'SCRIPT_NAME' => $_SERVER['SCRIPT_NAME'],
+			'DOCUMENT_URI' => $_SERVER['DOCUMENT_URI'],
+            'PHP_SELF' => $_SERVER['PHP_SELF'],			
 			'HTTP_CONTENT_TYPE'=>$_SERVER['Content-Type'] ?? '',
 			'HTTP_CONTENT_LENGTH'=>$_SERVER['Content-Length'] ?? '',
             'HTTP_HOST' => $_SERVER['SERVER_NAME'] ?? '',
@@ -232,7 +232,6 @@ abstract class HttpInterface
             'HTTP_USER_AGENT' => $_SERVER['User-Agent'] ?? '',
         ];
 		$server = array_merge($this->clientHeads,$server);
-		print_r($server);
 	    $client->setConnectTimeout(100);
 	    $client->setReadWriteTimeout(500);
 		//$client->setKeepAlive(true);
