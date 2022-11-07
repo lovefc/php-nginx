@@ -151,7 +151,7 @@ class App
         return $arg;
     }
 
-        // 启动
+    // 启动
     public static function start()
     {
         $arg = getopt('h:p:');
@@ -162,13 +162,14 @@ class App
         self::work($server_name, $port);
     }
 
-        // 重启
+    // 重启
     public static function reStart()
     {
 		self::stop();
 		self::run();
 		
     }
+	
 	
     public static function linuxStop()
     {

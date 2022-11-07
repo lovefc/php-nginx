@@ -127,17 +127,18 @@ class NginxConf
 
 
     // 匹配location字符串
-    public static function pregLocation($text)
+    public static function pregLocation(&$text)
     {
         preg_match_all("/location\s+(.+?)\s*{(.+?)\s*}/is", $text, $matches2);
         $matches2_status = $matches2[1][0] ?? '';
-        $locations = [];
+        $locations = [];																																												
         if ($matches2_status) {
             foreach ($matches2[1] as $k=>$v) {
                 $preg = trim(str_replace(self::$parameRules, "", $v));
                 $locations[$preg] = trim($matches2[2][$k]);
             }
         }
+		$text = preg_replace('/location\s+(.+?)\s*{(.+?)\s*}/is','',$text);
         return $locations;
     }
 
@@ -155,6 +156,7 @@ class NginxConf
         $text = preg_replace("/\#(.*)\s+/i", "", $text);
         // 去掉空格和'字符串
         $text = preg_replace_callback("/'(.+?)'/i", 'self::trimStr', $text);
+        $text = preg_replace_callback('/"(.+?)"/i', 'self::trimStr', $text);		
         // 匹配location字符串
         $confs = [];
         $confs['location'] = self::pregLocation($text);

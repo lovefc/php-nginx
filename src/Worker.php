@@ -66,8 +66,6 @@ class Worker
     public function __construct($local_socket, $context_option=[])
     {
         $this->stockAddres($local_socket);
-        // echo $this->transport.PHP_EOL;
-        //echo $this->protocol.PHP_EOL;
         $context = [];
         $context = stream_context_create($context_option);
         // 开启多端口监听,并且实现负载均衡
@@ -75,23 +73,18 @@ class Worker
         // 对于 UDP 套接字，您必须使用STREAM_SERVER_BIND作为flags参数
         $flags = $this->transport === 'udp' ? STREAM_SERVER_BIND : STREAM_SERVER_BIND | STREAM_SERVER_LISTEN;
         $local_text = $this->protocol.'://'.$this->host.':'.$this->port;
-        //echo $local_text.PHP_EOL;
         //$flags一个位掩码字段，可以设置为套接字创建标志的任意组合。对于 UDP 套接字，您必须STREAM_SERVER_BIND用作flags参数。
         //$context 8.0 可以为空,在其它版本下，如果不需要设置，则必须设置为一个空数组
         $errno = 0;
         $errmsg = '';
         $this->socket = stream_socket_server($local_text, $errno, $errmsg, $flags, $context);
         if (!is_resource($this->socket)) {
-            // echo "{$local_socket} 创建成功" . PHP_EOL;
-            //} else {
-            die("{$local_socket} 创建失败.") . PHP_EOL;
+            throw new \Exception("{$local_socket} Creation failed.");
         }
-
         // ssl 先不进行加密
         if ($this->transport === 'ssl') {
             stream_socket_enable_crypto($this->socket, false);
         }
-
         // 尝试打开tcp的keepalive，禁用Nagle算法（Nagle算法在未确认数据发送时会将数据放到缓存中。直到得到明显的数据确认或者直到攒到了一定数量的数据后再发包。）
         if (function_exists('socket_import_stream') && $this->transport === 'tcp') {
             set_error_handler(function () {
@@ -101,7 +94,6 @@ class Worker
             socket_set_option($socket, \SOL_TCP, \TCP_NODELAY, 1);
             restore_error_handler();
         }
-
         stream_set_blocking($this->socket, false); //设置非阻塞
         stream_set_timeout($this->socket, 5);
         // 判断资源是否创建成功
@@ -173,12 +165,14 @@ class Worker
                 $this->receive($socket);
             }
         }
+		/*
         foreach ($write as $fd) {
-            //var_dump($fd);
+            var_dump($fd);
         }
         foreach ($except as $fd) {
-            // var_dump($fd);
+            var_dump($fd);
         }
+		*/
     }
 
     // 创建链接
@@ -204,17 +198,14 @@ class Worker
     // 接收处理
     private function receive($client)
     {
-        //$client = $this->socketList[$this->protocol][$fd_key] ?? null;
         if (!$client) {
             return false;
         }
-        //is_resource($client) &&
         $buffer = fread($client, 65535);
         // 关闭链接
         if (empty($buffer) && (feof($client) || !is_resource($client))) {
             $this->closeStock($client);
         }
-
         is_callable($this->onReceive) && call_user_func_array($this->onReceive, [$this->socket, $client, $buffer]);
     }
 
@@ -233,6 +224,7 @@ class Worker
         $this->$event = $callback;
     }
 
+    // 启动
     public function start()
     {
         $this->accept();

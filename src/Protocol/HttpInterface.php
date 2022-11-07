@@ -29,7 +29,7 @@ abstract class HttpInterface
 
     public $fd;
 
-    public $getHeaders;
+    public $clientHeads = [];
 
     public $types;
 
@@ -60,6 +60,10 @@ abstract class HttpInterface
     public $errorPage = '';
 
     public $locations;
+	
+	public $accessLogFile = '';
+	
+	public $errorLogFile = ''; 
 
     public $setenvStatus = 0;
 
@@ -116,6 +120,8 @@ abstract class HttpInterface
             $this->addHeaders = \FC\NginxConf::$Configs[$server_name]['add_header'] ?? [];
             $this->errorPage = \FC\NginxConf::$Configs[$server_name]['error_page'][0] ?? '';
             $this->locations = \FC\NginxConf::$Configs[$server_name]['location'] ?? '';
+			$this->accessLogFile = \FC\NginxConf::$Configs[$server_name]['access_log'][0] ?? '';
+			$this->errorLogFile = \FC\NginxConf::$Configs[$server_name]['error_log'][0] ?? '';			
             $_SERVER['DOCUMENT_ROOT'] = $_SERVER['PATH_TRANSLATED'] =  $this->documentRoot;
             $_SERVER['SERVER_SOFTWARE'] = 'php-nginx/0.01';
             $this->setenvStatus = 1;
@@ -157,7 +163,8 @@ abstract class HttpInterface
         $this->fd = $fd;
         $this->init();
 		$this->outputStatus = false;
-		clearstatcache(); // 删除文件判断缓存
+		// 删除文件判断缓存
+		clearstatcache();
         if ($this->handleData($data)) {
             $this->setEnv($_SERVER['Host']);
             $query = IS_WIN ===true ? iconv('UTF-8', 'GB2312', $_SERVER['QUERY']) : $_SERVER['QUERY'];
@@ -167,6 +174,7 @@ abstract class HttpInterface
             !$this->outputStatus && $this->staticDir($file);		
 			!$this->outputStatus && $this->displayCatalogue=='on' && $this->autoIndex($file);
 			!$this->outputStatus && $this->errorPageShow(404);
+			$this->accessLog();
         }
     }
 
@@ -182,29 +190,6 @@ abstract class HttpInterface
         $this->send($data);
 		}
 		$this->outputStatus = true;
-    }
-
-    public function snowFlakeID()
-	{
-        //假设一个机器id
-        $machineId = 5219930613;
-		//41bit timestamp(毫秒)
-		$time = floor(microtime(true) * 1000);
-		//0bit 未使用
-		$suffix = 0;
-		//datacenterId  添加数据的时间
-		$base = decbin(pow(2, 40) - 1 + $time);
-		//workerId  机器ID
-		$machineid = decbin(pow(2, 9) - 1 + $machineId);
-		//毫秒类的计数
-		$random = mt_rand(1, pow(2, 11) - 1);
-		$random = decbin(pow(2, 11) - 1 + $random);
-		//拼装所有数据
-		$base64 = $suffix . $base . $machineid . $random;
-		//将二进制转换int
-		$base64 = bindec($base64);
-		$id = sprintf('%.0f', $base64);
-		return $id;
     }
 	
     public function fastcgiPHP($host = '127.0.0.1', $port = '9000')
@@ -224,10 +209,6 @@ abstract class HttpInterface
             'GATEWAY_INTERFACE' => 'FastCGI/1.0',
             'SERVER_SOFTWARE' => 'php/fcgiclient',
             'SERVER_PROTOCOL' => 'HTTP/1.1',
-			'HTTP_CONTENT_TYPE'=>$_SERVER['Content-Type'] ?? '',
-			'HTTP_CONTENT_LENGTH'=>$_SERVER['Content-Length'] ?? '',
-            'HTTP_HOST' => $_SERVER['SERVER_NAME'] ?? '',
-			'HTTP_POSTMAN_TOKEN' => $this->snowFlakeID(),
             'CONTENT_TYPE' => $_SERVER['Content-Type'] ?? '',
             'REQUEST_METHOD' => $_SERVER['REQUEST_METHOD'],
             'SCRIPT_FILENAME' => $_SERVER['SCRIPT_FILENAME'],
@@ -238,6 +219,9 @@ abstract class HttpInterface
             'SERVER_NAME' => $_SERVER['SERVER_NAME'],
             'CONTENT_LENGTH' => $_SERVER['Content-Length'] ?? '',
             'QUERY_STRING' => $_SERVER['QUERY_STRING'],
+			'HTTP_CONTENT_TYPE'=>$_SERVER['Content-Type'] ?? '',
+			'HTTP_CONTENT_LENGTH'=>$_SERVER['Content-Length'] ?? '',
+            'HTTP_HOST' => $_SERVER['SERVER_NAME'] ?? '',
             'HTTP_ACCEPT_LANGUAGE' => $_SERVER['Accept-Language'] ?? '',
             'HTTP_ACCEPT_ENCODING' => $_SERVER['Accept-Encoding'] ?? '',
             'HTTP_SEC_FETCH_DEST' => $_SERVER['Sec-Fetch-Dest'] ?? '',
@@ -247,6 +231,8 @@ abstract class HttpInterface
             'HTTP_ACCEPT' => $_SERVER['Accept'] ?? '',
             'HTTP_USER_AGENT' => $_SERVER['User-Agent'] ?? '',
         ];
+		$server = array_merge($this->clientHeads,$server);
+		print_r($server);
 	    $client->setConnectTimeout(100);
 	    $client->setReadWriteTimeout(500);
 		//$client->setKeepAlive(true);
@@ -475,11 +461,18 @@ abstract class HttpInterface
         $this->server->send($this->fd, $response);
         $this->body = '';
         $this->bodyLen	= 0;
+		$this->clientHeads = [];
+		$this->clientBody = '';
     }
 
     // 访问日志
     public function accessLog()
     {
+		$log = $_SERVER['Host']." - - ".date("Y-m-d H:i:s")." ".$_SERVER['REQUEST_METHOD']." ".$_SERVER['QUERY']." ".$_SERVER['SERVER_PROTOCOL']." \"".$_SERVER['User-Agent']."\"".PHP_EOL;
+		echo $log;
+		if(!empty($this->accessLogFile) && is_dir(dirname($this->accessLogFile))){
+			file_put_contents($this->accessLogFile, $log , FILE_APPEND);
+		}
         //127.0.0.1 - - [19/Oct/2022:11:06:33 +0800] "GET / HTTP/1.1" 200 4118 "-" "Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/86.0.4240.198 Safari/537.36"
     }
 
@@ -521,6 +514,7 @@ abstract class HttpInterface
                 $v_num = strlen($head2[0].":");
                 $v2 = substr($v, $v_num);
                 $head[trim($head2[0])] = trim($v2);
+				$this->clientHeads[trim($head2[0])] = trim($v2);
             }
 			//如果没有这个值
 			if(!isset($head['If-Modified-Since']) && isset($_SERVER['If-Modified-Since'])){
@@ -569,12 +563,12 @@ abstract class HttpInterface
     {
         $arr =parse_url($query);
         $path =  $arr['path'] ?? '';
-        $query2 = $arr['query'] ?? '';
+        $query2 = isset($arr['query']) ? "?".$arr['query'] : '';
         if (substr($path, -1) == '/') {
             foreach ($this->defaultIndex as $index) {
                 $file = $this->documentRoot.$path.$index;
                 if (is_file($file)) {
-                    $_SERVER['QUERY'] = $path.$index."?{$query2}";
+                    $_SERVER['QUERY'] = $path.$index."{$query2}";
                     return $file;
                 }
             }
