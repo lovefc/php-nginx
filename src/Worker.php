@@ -109,7 +109,7 @@ class Worker
     // 解析地址
     public function stockAddres($local_socket)
     {
-        if (substr_count($local_socket, ':')==3) {
+        if (substr_count($local_socket, ':')==2) {
             list($transport, $host, $port) = explode(":", $local_socket);
         } else {
             $port = null;
@@ -131,7 +131,7 @@ class Worker
     // 默认端口
     public function getPort($transport)
     {
-        $port = 54321;
+	    $port = 54321;
         switch($transport) {
             case "ssl":
                 $port = 443;

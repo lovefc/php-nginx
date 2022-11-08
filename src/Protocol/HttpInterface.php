@@ -163,7 +163,8 @@ abstract class HttpInterface
 		// 删除文件判断缓存
 		clearstatcache();
         if ($this->handleData($data)) {
-            $this->setEnv($_SERVER['Host']);
+			$tmp = explode(":",$_SERVER['Host'])[0];
+            $this->setEnv($tmp);
             $query = IS_WIN ===true ? iconv('UTF-8', 'GB2312', $_SERVER['QUERY']) : $_SERVER['QUERY'];
             $file = $this->getDefaultIndex($query);
             $this->explodeQuery();

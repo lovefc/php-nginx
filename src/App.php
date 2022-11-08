@@ -9,8 +9,8 @@ namespace FC;
 
 class App
 {
-    //public static $is_win = (PATH_SEPARATOR == ';') ? true : false
     public static $phpPath;
+	
     // 获取php文件位置
     public static function getPhpPath()
     {
@@ -52,7 +52,8 @@ class App
         }
         return null;
     }
-
+    
+	// 获取php.ini配置
     public static function config()
     {
         $php_ini = '';
@@ -66,13 +67,13 @@ class App
         }
         return $php_ini;
     }
-
+       
+	// 执行命令
     public static function execCmd($cmd,$cmd2)
     {
         if (substr(php_uname(), 0, 7) == "Windows") {
 			$cmd = "start {$cmd}";
             pclose(popen($cmd, "r"));
-            sleep(1);
         } else {
             $cwd = $env = null;
 			$cmd .= ' &';
@@ -82,52 +83,42 @@ class App
             }
         }
     }
-	
-	//调用命令获取输出
-    public static function realCmd($command)
+   
+    public static function run($confFile= '')
     {
-        $handle = popen($command, 'r');
-        $data = null;
-        while (!feof($handle)) {
-            $data .= fread($handle,1024);
-        }
-        pclose($handle);
-        return $data;
-    }
-
-    public static function run()
-    {
-        NginxConf::readConf(PATH.'/conf/vhosts');
-        //print_r(NginxConf::$Configs);
+		if(!is_file($confFile) || empty($confFile)){
+            NginxConf::readAllConf(PATH.'/conf/vhosts');
+		}else{
+			NginxConf::readConf($confFile);
+		}
 		$php_path = self::getPhpPath();
-		//echo $php_path;
         foreach (NginxConf::$Configs as $k=>$v) {
+			if(!isset($v['listen'])) break;
             $server_name = $k;
-            $cert = $v['ssl_certificate'][0] ?? '';
-            $key = $v['ssl_certificate_key'][0] ?? '';
             foreach ($v['listen'] as $port) {
                 self::$phpPath = $php_path;
-                $cmd = $php_path.' '.PATH.'/app.php -h '.$server_name.' -p '.$port;
-				$cmd2 = 'Start-Process '.$php_path.' -ArgumentList "'.PATH.'/app.php -h '.$server_name.' -p '.$port;
+                $cmd = $php_path.' '.PATH.'/app.php -h '.$server_name.' -p '.$port.' -c '.$confFile;
+				$cmd2 = 'Start-Process '.$php_path.' -ArgumentList "'.PATH.'/app.php -h '.$server_name.' -p '.$port.' -c '.$confFile;
                 self::execCmd($cmd,$cmd2);
             }
         }
     }
 
-    public static function work($server_name, $port)
+    public static function work($server_name, $port, $confFile='')
     {
-        $process_title = "php.nginx-{$server_name}";//PHP 5.5.0
-        cli_set_process_title($process_title);
+		$process_title = "php.nginx-{$server_name}-{$port}";
+		if(!empty($confFile)) $process_title .= "-".md5($confFile);
+        cli_set_process_title($process_title);// PHP 5.5.0 可用
         $cert = NginxConf::$Configs[$server_name]['ssl_certificate'][0] ?? null;
         $key  = NginxConf::$Configs[$server_name]['ssl_certificate_key'][0] ?? null;
         if (!empty($cert) && !empty($key)) {
-            $context_option = array(
-                'ssl' => array(
+            $context_option = [
+                'ssl' => [
                     'local_cert'  => $cert, // 也可以是crt文件
                     'local_pk'    => $key,
                     'verify_peer' => false, // 是否需要验证 SSL 证书,默认为true
-                )
-            );
+                ]
+            ];
             $obj = new \FC\Protocol\Https("0.0.0.0:{$port}", $context_option);
         } else {
             $obj = new \FC\Protocol\Http("0.0.0.0:{$port}", []);
@@ -154,20 +145,25 @@ class App
     // 启动
     public static function start()
     {
-        $arg = getopt('h:p:');
+        $arg = getopt('h:p:c:');
         $server_name = isset($arg['h']) ? $arg['h'] : '127.0.0.1';
         $port = isset($arg['p']) ? $arg['p'] : '80';
-        (!$server_name || !$port) && die('执行失败');
-		NginxConf::readConf(PATH.'/conf/vhosts');
-        self::work($server_name, $port);
+	    $confFile = isset($arg['c']) ? $arg['c'] : '';
+		if(!is_file($confFile) || empty($confFile)){
+            NginxConf::readAllConf(PATH.'/conf/vhosts');
+		}else{
+			NginxConf::readConf($confFile);
+		}
+		//echo $server_name.$port.$confFile;
+		//print_r(NginxConf::$Configs);
+        self::work($server_name, $port, $confFile);
     }
 
     // 重启
-    public static function reStart()
+    public static function reStart($confFile='')
     {
 		self::stop();
-		self::run();
-		
+		self::run($confFile);
     }
 	
 	

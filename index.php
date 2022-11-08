@@ -9,11 +9,22 @@ define("PATH", __DIR__);
 
 require(PATH.'/require.php');
 
-$method = $argv[1] ?? 0;
+// 检查环境
+\FC\Tools::checkEnvironment();
+
+$arg = getopt('c:');
+
+$confFile = isset($arg['c']) ? $arg['c'] : '';
+
+if(empty($confFile)){
+    $method = $argv[1] ?? 0;
+}else{
+	$method = $argv[3] ?? 0;
+}
 
 if($method){
 	if($method == 'start'){
-		\FC\App::run();
+		\FC\App::run($confFile);
 		echo \FC\Tools::colorFont("PHP-NGINX Starting....","绿").PHP_EOL;
 	}
 	if($method == 'stop'){
@@ -21,7 +32,7 @@ if($method){
 		echo \FC\Tools::colorFont($text,"绿").PHP_EOL;
 	}
 	if($method == 'restart'){
-		\FC\App::run();
+		\FC\App::run($confFile);
 		echo \FC\Tools::colorFont("PHP-NGINX Restarting....","绿").PHP_EOL;		
 	}
 }else{

@@ -164,9 +164,21 @@ class NginxConf
         self::analysis($arr, $confs);
         return $confs;
     }
-
-
-    public static function readConf($path='', $extensions=['conf'])
+    
+    // 读取配置
+    public static function readConf($path='')
+    {
+        $conf = self::getConf($path);
+        foreach ($conf['server_name'] as $v) {
+            if (isset(self::$Configs[$v])) {
+               die(Tools::colorFont("{$v}-The domain name is bound, and it is bound repeatedly, Please check the configuration!", "红"));
+            }
+            self::$Configs[$v] = $conf;
+        }
+    }
+	
+    // 读取所有配置
+    public static function readAllConf($path='', $extensions=['conf'])
     {
         if (!is_dir($path)) {
             return false;
@@ -174,13 +186,7 @@ class NginxConf
         $files = [];
         self::getFiles($files, $path, $extensions);
         foreach ($files as $v) {
-            $conf = self::getConf($v);
-            foreach ($conf['server_name'] as $v) {
-                if (isset(self::$Configs[$v])) {
-                    die(Tools::colorFont("{$v}-The domain name is bound, and it is bound repeatedly, Please check the configuration!", "红"));
-                }
-                self::$Configs[$v] = $conf;
-            }
+           self::readConf($v);
         }
         $conf2 = self::defaultConf();
         self::$Configs = array_merge($conf2, self::$Configs);
