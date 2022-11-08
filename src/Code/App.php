@@ -197,8 +197,6 @@ class App
         } else {
             NginxConf::readConf($confFile);
         }
-        //echo $server_name.$port.$confFile;
-        //print_r(NginxConf::$Configs);
         self::work($server_name, $port, $confFile);
     }
 
@@ -231,11 +229,12 @@ class App
         if (empty($output)) {
             return 'Please start php-nginx first!';
         }
-        $arr = explode(PHP_EOL, $output);
-        $s = array_filter($arr);
-        foreach ($s as $pid) {
-            shell_exec("kill -9 {$pid} 2>&1");
-        }
+        $arr = array_filter(explode(PHP_EOL, $output));
+		if(!empty($arr)){
+            foreach ($arr as $pid) {
+               shell_exec("kill -9 {$pid} >/dev/null 2>&1");
+            }
+		}
         return 'PHP-NGINX Stoping....';
     }
 

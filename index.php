@@ -8,9 +8,7 @@
 
 use \FC\Code\{App,Tools};
 
-define("PATH", __DIR__);
-
-require(PATH.'/src/require.php');
+require(__DIR__.'/src/require.php');
 
 // 检查环境
 Tools::checkEnvironment();
