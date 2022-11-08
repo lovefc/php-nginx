@@ -16,10 +16,15 @@ $arg = getopt('c:');
 
 $confFile = isset($arg['c']) ? $arg['c'] : '';
 
-if(empty($confFile)){
-    $method = $argv[1] ?? 0;
-}else{
-	$method = $argv[3] ?? 0;
+$method = isset($argv[1]) ? strtolower(trim($argv[1])) : 0;
+
+if($method == '-v'){
+	echo \FC\Tools::colorFont("[php-nginx] Version: ".VERSION,"绿").PHP_EOL;
+	die();
+}
+
+if(!empty($confFile)){
+	$method = isset($argv[3]) ? strtolower(trim($argv[3])) : 0;
 }
 
 if($method){
@@ -28,7 +33,7 @@ if($method){
 		echo \FC\Tools::colorFont("PHP-NGINX Starting....","绿").PHP_EOL;
 	}
 	if($method == 'stop'){
-		$text = \FC\App::stop();
+		$text = \FC\App::stop($confFile);
 		echo \FC\Tools::colorFont($text,"绿").PHP_EOL;
 	}
 	if($method == 'restart'){

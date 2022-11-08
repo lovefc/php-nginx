@@ -162,14 +162,17 @@ class App
     // 重启
     public static function reStart($confFile='')
     {
-		self::stop();
+		self::stop($confFile);
 		self::run($confFile);
     }
 	
 	
-    public static function linuxStop()
+    public static function linuxStop($confFile='')
     {
 		$name = 'php.nginx';
+		if(!empty($confFile)){
+			$name = md5($confFile);
+		}
 	    $linux_cmd = "ps -ef | grep '$name' | grep -v 'grep' | awk '{print \$2}'";
 		$output = shell_exec($linux_cmd);
 		if(empty($output)) return 'Please start php-nginx first!';
@@ -188,10 +191,10 @@ class App
 	}
 	
     // 停止
-    public static function stop()
+    public static function stop($confFile='')
     {
 		if(IS_WIN == false){
-			return self::linuxStop();
+			return self::linuxStop($confFile);
 		}else{
 			return self::winStop();
 		}
