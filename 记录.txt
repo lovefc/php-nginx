@@ -1,6 +1,0 @@
-win查找进程：
-
-netstat -ano | findstr "127.0.0.1:80"
-
-
-./php-cgi-spawner.exe "D:\phpstudy_pro\Extensions\php\php8.1.11nts\php-cgi.exe -c D:\phpstudy_pro\Extensions\php\php8.1.11nts\php.ini" 9000 4

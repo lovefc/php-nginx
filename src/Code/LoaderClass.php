@@ -1,5 +1,7 @@
 <?php
 
+namespace FC\Code;
+
 /*
  * 基于psr4规范的加载类
  * @Author: lovefc 
@@ -53,11 +55,11 @@ class LoaderClass
 	
     /*
      * psr0的增加，要求必须是路径最后的字符串等于命名空间名,其实是psr-4的简写
+     * 
      * @param $base_dir 路径名
      * @param $filext 文件后缀
      * @param $prepend 优先级
      */
-
     public static function AddPsr0($base_dir, $filext = null, $prepend = false)
     {
         $base_dirs = rtrim($base_dir, '/');
@@ -80,11 +82,12 @@ class LoaderClass
 	
     /*
      * $prefix 命名空间名
+     * 
      * @param $base_dir 地址路径
      * @param $filext 文件后缀
      * @param $prepend 优先级
+     * @return void
      */
-
     public static function AddPsr4($prefix, $base_dir, $filext = null, $prepend = false)
     {
         $prefix = trim($prefix, '\\');
@@ -112,9 +115,9 @@ class LoaderClass
 
     /*
      * 如果文件存在，那么就加载它哦！
+     * 
      * @return void
      */
-
     public static function requireFile($file)
     {
         if (is_file($file)) {
@@ -126,6 +129,7 @@ class LoaderClass
 
     /*
      * 解析命名
+     * 
      * @param $class 类名
      */
 

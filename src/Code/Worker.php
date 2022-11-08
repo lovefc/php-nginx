@@ -2,26 +2,26 @@
 /*
  * @Author       : lovefc
  * @Date         : 2022-09-03 02:11:36
- * @LastEditTime : 2022-10-24 22:45:54
+ * @LastEditTime : 2022-11-09 01:21:21
  */
 
-namespace FC;
+namespace FC\Code;
 
 class Worker
 {
     public $socket;
 
-    public $_readFds = [];
-    public $_writeFds = [];
-    public $_exceptFds = [];
+    private $_readFds = [];
+
+    private $_writeFds = [];
+
+    private $_exceptFds = [];
 
     public $onReceive;
 
     public $onConnect;
 
     public $onClose;
-
-    public $onDecrypt;
 
     public $socketList = [];
 
@@ -33,17 +33,12 @@ class Worker
 
     public $port;
 
-    public $ssl;
-
-    public $buffer = '';
-
     protected $selectTimeout = 100000000;
 
     // 事件
     private $events = [
         'connect' => 'onConnect', // 开始
         'receive' => 'onReceive', // 执行
-        'decrypt'=>'onDecrypt', //解释ssl
         'close' => 'onClose', // 关闭
     ];
 
@@ -63,6 +58,12 @@ class Worker
         'wss'=>'ssl',
     ];
 
+    /**
+     * 监听端口
+     *
+     * @param [type] $local_socket
+     * @param array $context_option
+     */
     public function __construct($local_socket, $context_option=[])
     {
         $this->stockAddres($local_socket);
@@ -106,7 +107,12 @@ class Worker
         return $this->socket;
     }
 
-    // 解析地址
+    /**
+     * 解析地址
+     *
+     * @param [type] $local_socket
+     * @return void
+     */
     public function stockAddres($local_socket)
     {
         if (substr_count($local_socket, ':')==2) {
@@ -128,10 +134,15 @@ class Worker
         $this->port = $port ?? $this->getPort($this->transport);
     }
 
-    // 默认端口
+    /**
+     * 默认端口
+     *
+     * @param [type] $transport
+     * @return number
+     */
     public function getPort($transport)
     {
-	    $port = 54321;
+        $port = 54321;
         switch($transport) {
             case "ssl":
                 $port = 443;
@@ -143,7 +154,11 @@ class Worker
         return $port;
     }
 
-    // 监听
+    /**
+     * 开始监听
+     *
+     * @return void
+     */
     private function accept()
     {
         while (true) {
@@ -151,6 +166,11 @@ class Worker
         }
     }
 
+    /**
+     * 事件处理
+     *
+     * @return void
+     */
     private function reception()
     {
         $write = $except = [];
@@ -165,17 +185,13 @@ class Worker
                 $this->receive($socket);
             }
         }
-		/*
-        foreach ($write as $fd) {
-            var_dump($fd);
-        }
-        foreach ($except as $fd) {
-            var_dump($fd);
-        }
-		*/
     }
 
-    // 创建链接
+    /**
+     * 创建链接
+     *
+     * @return void
+     */
     private function createSocket()
     {
         $client = null;
@@ -187,7 +203,12 @@ class Worker
         }
     }
 
-    // 关闭链接
+    /**
+     * 关闭链接
+     *
+     * @param [type] $client
+     * @return void
+     */
     private function closeStock($client)
     {
         unset($this->socketList[$this->protocol][(int)$client]);
@@ -195,7 +216,12 @@ class Worker
         !empty($close) && is_callable($this->onClose) && call_user_func_array($this->onClose, [$client]);
     }
 
-    // 接收处理
+    /**
+     * 接收处理
+     *
+     * @param [type] $client
+     * @return void
+     */
     private function receive($client)
     {
         if (!$client) {
@@ -209,7 +235,13 @@ class Worker
         is_callable($this->onReceive) && call_user_func_array($this->onReceive, [$this->socket, $client, $buffer]);
     }
 
-    // 信息发送
+    /**
+     * 信息发送
+     *
+     * @param [type] $client
+     * @param [type] $data
+     * @return void
+     */
     public function send($client, $data)
     {
         if (is_resource($client)) {
@@ -217,14 +249,24 @@ class Worker
         }
     }
 
-    // 事件绑定
+    /**
+     * 事件绑定
+     *
+     * @param [type] $event
+     * @param [type] $callback
+     * @return void
+     */
     public function on($event, $callback)
     {
         $event = $this->events[$event] ?? null;
         $this->$event = $callback;
     }
 
-    // 启动
+    /**
+     * 启动
+     *
+     * @return void
+     */
     public function start()
     {
         $this->accept();

@@ -5,7 +5,7 @@
  * @LastEditTime : 2022-10-21 17:14:35
  */
 
-namespace FC;
+namespace FC\Code;
 
 class Tools
 {	

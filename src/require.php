@@ -25,13 +25,13 @@ $is_win = PATH_SEPARATOR == ';' ? true : false;
 
 define('IS_WIN',$is_win);
 
-require(PATH.'/LoaderClass.php');
+require(__DIR__.'/Code/LoaderClass.php');
 
 $prefix = "FC";
 
-$base_dir = PATH."/src";
+$base_dir = __DIR__;
 
-LoaderClass::AddPsr4($prefix, $base_dir);
+\FC\Code\LoaderClass::AddPsr4($prefix, $base_dir);
 
 // 自动加载
-LoaderClass::register();
+\FC\Code\LoaderClass::register();

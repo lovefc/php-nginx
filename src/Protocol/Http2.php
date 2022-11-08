@@ -2,16 +2,16 @@
 /*
  * @Author       : lovefc
  * @Date         : 2022-09-03 02:10:24
- * @LastEditTime : 2022-09-03 02:10:24
+ * @LastEditTime : 2022-11-09 01:38:36
  */
 
 namespace FC\Protocol;
-
+use FC\Code\Worker;
 class Http2 extends HttpInterface
 {
     public function __construct($text, $context_option=[])
     {
-        $this->server = new \FC\Worker('https://'.$text, $context_option);
+        $this->server = new Worker('https://'.$text, $context_option);
         $this->server->on('connect', [$this,"_onConnect"]);
         $this->server->on('receive', [$this,"_onReceive"]);	
         $this->server->on('close', [$this,"_onClose"]);

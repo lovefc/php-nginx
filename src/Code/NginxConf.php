@@ -2,18 +2,24 @@
 /*
  * @Author       : lovefc
  * @Date         : 2022-10-21 16:36:41
- * @LastEditTime : 2022-11-01 22:14:03
+ * @LastEditTime : 2022-11-09 01:24:46
  */
 
-namespace FC;
+namespace FC\Code;
 
 class NginxConf
 {
     public static $Configs = [];
+    
+    /**
+     * 要匹配的字符串
+     *
+     * @var array
+     */
     public static $parameters = [
       "autoindex",
       "autoindex_exact_size",
-      "autoindex_localtime",	
+      "autoindex_localtime",
       "add_header",
       "listen",
       "server_name",
@@ -29,14 +35,11 @@ class NginxConf
       "gzip_comp_level",
     ];
 
-    /*
-= : 严格匹配。如果这个查询匹配，那么将停止搜索并立即处理此请求。
-~ : 为区分大小写匹配(可用正则表达式)
-!~ : 为区分大小写不匹配
-~* : 为不区分大小写匹配(可用正则表达式)
-!~* : 为不区分大小写不匹配
-^~ : 如果把这个前缀用于一个常规字符串,那么告诉nginx 如果路径匹配那么不测试正则表达式。
-    */
+    /**
+     * 要匹配的符号
+     *
+     * @var array
+     */
     public static $parameRules = [
         '~*',//为不区分大小写匹配(可用正则表达式)
 
@@ -53,24 +56,9 @@ class NginxConf
         '=', // 表示精确匹配
     ];
 
-    public static function defaultConf()
-    {
-        $dir = dirname(__DIR__);
-        $conf = [
-            '127.0.0.1' => [
-                'listen' => [80],
-                'server_name' => ['127.0.0.1'],
-                'root' => [$dir.DIRECTORY_SEPARATOR.'html'],
-                'index' => ['index.html','index.htm'],
-                'autoindex' => ['on']
-            ]
-        ];
-		$conf = [];
-        return $conf;
-    }
-
     /**
      * 获取文件夹内指定后缀的所有文件
+     * 
      * @param array $result 结果集
      * @param string $dir 指定目录
      * @param array $filter 后缀过滤，为空即全部文件
@@ -93,7 +81,12 @@ class NginxConf
         }
     }
 
-    // 整理字符串
+    /**
+     * 整理字符串
+     *
+     * @param [type] $str
+     * @return string
+     */
     public static function trimStr($str)
     {
         $str = $str[1];
@@ -101,7 +94,13 @@ class NginxConf
         return $str;
     }
 
-    // 解析参数
+    /**
+     * 解析参数
+     *
+     * @param [type] $arr
+     * @param [type] $confs
+     * @return void
+     */
     public static function analysis($arr, &$confs)
     {
         foreach ($arr as $text) {
@@ -126,25 +125,32 @@ class NginxConf
     }
 
 
-    // 匹配location字符串
+    /**
+     * 匹配location字符串
+     *
+     * @param [type] $text
+     * @return void
+     */
     public static function pregLocation(&$text)
     {
         preg_match_all("/location\s+(.+?)\s*{(.+?)\s*}/is", $text, $matches2);
         $matches2_status = $matches2[1][0] ?? '';
-        $locations = [];																																												
+        $locations = [];
         if ($matches2_status) {
             foreach ($matches2[1] as $k=>$v) {
                 $preg = trim(str_replace(self::$parameRules, "", $v));
                 $locations[$preg] = trim($matches2[2][$k]);
             }
         }
-		$text = preg_replace('/location\s+(.+?)\s*{(.+?)\s*}/is','',$text);
+        $text = preg_replace('/location\s+(.+?)\s*{(.+?)\s*}/is', '', $text);
         return $locations;
     }
 
     /**
      * 读取nginx配置文件信息
-     * @param string $file 文件名称
+     * 
+     * @param string $file 文件地址
+     * @return array
      */
     public static function getConf($file)
     {
@@ -156,7 +162,7 @@ class NginxConf
         $text = preg_replace("/\#(.*)\s+/i", "", $text);
         // 去掉空格和'字符串
         $text = preg_replace_callback("/'(.+?)'/i", 'self::trimStr', $text);
-        $text = preg_replace_callback('/"(.+?)"/i', 'self::trimStr', $text);		
+        $text = preg_replace_callback('/"(.+?)"/i', 'self::trimStr', $text);
         // 匹配location字符串
         $confs = [];
         $confs['location'] = self::pregLocation($text);
@@ -164,20 +170,29 @@ class NginxConf
         self::analysis($arr, $confs);
         return $confs;
     }
-    
-    // 读取配置
+
+    /**
+     * 读取配置
+     * 
+     * @param string $path 文件地址
+     * @return void
+     */
     public static function readConf($path='')
     {
         $conf = self::getConf($path);
         foreach ($conf['server_name'] as $v) {
             if (isset(self::$Configs[$v])) {
-               die(Tools::colorFont("{$v}-The domain name is bound, and it is bound repeatedly, Please check the configuration!", "红"));
+                die(Tools::colorFont("{$v}-The domain name is bound, and it is bound repeatedly, Please check the configuration!", "红"));
             }
             self::$Configs[$v] = $conf;
         }
     }
-	
-    // 读取所有配置
+
+    /**
+     * 读取所有配置
+     * 
+     * @param string $path 文件地址
+     */
     public static function readAllConf($path='', $extensions=['conf'])
     {
         if (!is_dir($path)) {
@@ -186,9 +201,7 @@ class NginxConf
         $files = [];
         self::getFiles($files, $path, $extensions);
         foreach ($files as $v) {
-           self::readConf($v);
+            self::readConf($v);
         }
-        $conf2 = self::defaultConf();
-        self::$Configs = array_merge($conf2, self::$Configs);
     }
 }

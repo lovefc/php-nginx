@@ -1,6 +1,6 @@
 <?php
 
-namespace FC;
+namespace FC\Code;
 
 /*
  * 常用http协议状态

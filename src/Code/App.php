@@ -2,16 +2,20 @@
 /*
  * @Author       : lovefc
  * @Date         : 2022-09-03 02:11:36
- * @LastEditTime : 2022-10-25 11:03:22
+ * @LastEditTime : 2022-11-09 02:09:45
  */
 
-namespace FC;
+namespace FC\Code;
 
 class App
 {
     public static $phpPath;
-	
-    // 获取php文件位置
+
+    /**
+     * 获取php运行文件位置（判断不一定准确）
+     *
+     * @return string
+     */
     public static function getPhpPath()
     {
         if (defined('PHP_BINARY') && PHP_BINARY && in_array(PHP_SAPI, array('cli', 'cli-server')) && is_file(PHP_BINARY)) {
@@ -52,8 +56,12 @@ class App
         }
         return null;
     }
-    
-	// 获取php.ini配置
+
+    /**
+     * 获取php.ini配置
+     *
+     * @return void
+     */
     public static function config()
     {
         $php_ini = '';
@@ -67,47 +75,72 @@ class App
         }
         return $php_ini;
     }
-       
-	// 执行命令
-    public static function execCmd($cmd,$cmd2)
+
+    /**
+     * 执行命令
+     *
+     * @param [type] $cmd
+     * @param [type] $cmd2
+     * @return void
+     */
+    public static function execCmd($cmd, $cmd2)
     {
         if (substr(php_uname(), 0, 7) == "Windows") {
-			$cmd = "start {$cmd}";
+            $cmd = "start {$cmd}";
             pclose(popen($cmd, "r"));
         } else {
             $cwd = $env = null;
-			$cmd .= ' &';
+            $cmd .= ' &';
             $process = proc_open($cmd, [], $pipes, $cwd, $env);
             if (is_resource($process)) {
                 proc_close($process);
             }
         }
     }
-   
+
+    /**
+     * 运行
+     *
+     * @param string $confFile
+     * @return void
+     */
     public static function run($confFile= '')
     {
-		if(!is_file($confFile) || empty($confFile)){
+        if (!is_file($confFile) || empty($confFile)) {
             NginxConf::readAllConf(PATH.'/conf/vhosts');
-		}else{
-			NginxConf::readConf($confFile);
-		}
-		$php_path = self::getPhpPath();
+        } else {
+            NginxConf::readConf($confFile);
+        }
+        $php_path = self::getPhpPath();
+        self::$phpPath = $php_path;
+        $path = dirname(__DIR__);
         foreach (NginxConf::$Configs as $k=>$v) {
-			if(!isset($v['listen'])) break;
+            if (!isset($v['listen'])) {
+                break;
+            }
             $server_name = $k;
             foreach ($v['listen'] as $port) {
-                self::$phpPath = $php_path;
-                $cmd = $php_path.' '.PATH.'/app.php -h '.$server_name.' -p '.$port.' -c '.$confFile;
-				$cmd2 = 'Start-Process '.$php_path.' -ArgumentList "'.PATH.'/app.php -h '.$server_name.' -p '.$port.' -c '.$confFile;
-                self::execCmd($cmd,$cmd2);
+                $cmd = $php_path.' '.$path.'/app.php -h '.$server_name.' -p '.$port.' -c '.$confFile;
+                $cmd2 = 'Start-Process '.$php_path.' -ArgumentList "'.$path.'/app.php -h '.$server_name.' -p '.$port.' -c '.$confFile;
+                self::execCmd($cmd, $cmd2);
             }
         }
     }
 
+    /**
+     * 开始监听
+     *
+     * @param [type] $server_name
+     * @param [type] $port
+     * @param string $confFile
+     * @return void
+     */
     public static function work($server_name, $port, $confFile='')
     {
-		$process_title = "php.nginx-{$server_name}-{$port}";
-		if(!empty($confFile)) $process_title .= "-".md5($confFile);
+        $process_title = "php.nginx-{$server_name}-{$port}";
+        if (!empty($confFile)) {
+            $process_title .= "-".md5($confFile);
+        }
         cli_set_process_title($process_title);// PHP 5.5.0 可用
         $cert = NginxConf::$Configs[$server_name]['ssl_certificate'][0] ?? null;
         $key  = NginxConf::$Configs[$server_name]['ssl_certificate_key'][0] ?? null;
@@ -135,6 +168,12 @@ class App
         $obj->start();
     }
 
+    /**
+     * 获取参数
+     *
+     * @param [type] $key
+     * @return string
+     */
     public static function getArgs($key)
     {
         $args = getopt("{$key}:");
@@ -142,62 +181,88 @@ class App
         return $arg;
     }
 
-    // 启动
+    /**
+     * 启动
+     *
+     * @return void
+     */
     public static function start()
     {
         $arg = getopt('h:p:c:');
         $server_name = isset($arg['h']) ? $arg['h'] : '127.0.0.1';
         $port = isset($arg['p']) ? $arg['p'] : '80';
-	    $confFile = isset($arg['c']) ? $arg['c'] : '';
-		if(!is_file($confFile) || empty($confFile)){
+        $confFile = isset($arg['c']) ? $arg['c'] : '';
+        if (!is_file($confFile) || empty($confFile)) {
             NginxConf::readAllConf(PATH.'/conf/vhosts');
-		}else{
-			NginxConf::readConf($confFile);
-		}
-		//echo $server_name.$port.$confFile;
-		//print_r(NginxConf::$Configs);
+        } else {
+            NginxConf::readConf($confFile);
+        }
+        //echo $server_name.$port.$confFile;
+        //print_r(NginxConf::$Configs);
         self::work($server_name, $port, $confFile);
     }
 
-    // 重启
+    /**
+     * 重启
+     *
+     * @param string $confFile
+     * @return void
+     */
     public static function reStart($confFile='')
     {
-		self::stop($confFile);
-		self::run($confFile);
+        self::stop($confFile);
+        self::run($confFile);
     }
-	
-	
+
+    /**
+     * linux下的停止
+     *
+     * @param string $confFile
+     * @return string
+     */
     public static function linuxStop($confFile='')
     {
-		$name = 'php.nginx';
-		if(!empty($confFile)){
-			$name = md5($confFile);
-		}
-	    $linux_cmd = "ps -ef | grep '$name' | grep -v 'grep' | awk '{print \$2}'";
-		$output = shell_exec($linux_cmd);
-		if(empty($output)) return 'Please start php-nginx first!';
-		$arr = explode(PHP_EOL,$output);
-		$s = array_filter($arr);
-		foreach($arr as $pid){
-		    shell_exec("kill -9 {$pid} 2>&1");
-		}
-		return 'PHP-NGINX Stoping....';
+        $name = 'php.nginx';
+        if (!empty($confFile)) {
+            $name = md5($confFile);
+        }
+        $linux_cmd = "ps -ef | grep '$name' | grep -v 'grep' | awk '{print \$2}'";
+        $output = shell_exec($linux_cmd);
+        if (empty($output)) {
+            return 'Please start php-nginx first!';
+        }
+        $arr = explode(PHP_EOL, $output);
+        $s = array_filter($arr);
+        foreach ($s as $pid) {
+            shell_exec("kill -9 {$pid} 2>&1");
+        }
+        return 'PHP-NGINX Stoping....';
     }
-	
-	public static function winStop(){
-		$win_cmd = 'taskkill /T /F /im php.exe 2>NUL 1>NUL';
-		system($win_cmd);
-		return 'PHP-NGINX Stoping....';
-	}
-	
-    // 停止
+
+    /**
+     * win下的停止
+     *
+     * @return void
+     */
+    public static function winStop()
+    {
+        $win_cmd = 'taskkill /T /F /im php.exe 2>NUL 1>NUL';
+        system($win_cmd);
+        return 'PHP-NGINX Stoping....';
+    }
+
+    /**
+     * 停止运行
+     *
+     * @param string $confFile
+     * @return void
+     */
     public static function stop($confFile='')
     {
-		if(IS_WIN == false){
-			return self::linuxStop($confFile);
-		}else{
-			return self::winStop();
-		}
+        if (IS_WIN == false) {
+            return self::linuxStop($confFile);
+        } else {
+            return self::winStop();
+        }
     }
-	
 }
