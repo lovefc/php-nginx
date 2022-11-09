@@ -467,12 +467,11 @@ abstract class HttpInterface
     // 访问日志
     public function accessLog()
     {
-        $log = $_SERVER['Host']." - - ".date("Y-m-d H:i:s")." ".$_SERVER['REQUEST_METHOD']." ".$_SERVER['QUERY']." ".$_SERVER['SERVER_PROTOCOL']." \"".$_SERVER['User-Agent']."\"".PHP_EOL;
+        $log = $_SERVER['REMOTE_ADDR']." - - ".date("Y-m-d H:i:s")." ".$_SERVER['REQUEST_METHOD']." ".$_SERVER['QUERY']." ".$_SERVER['SERVER_PROTOCOL']." \"".$_SERVER['User-Agent']."\"".PHP_EOL;
         echo $log;
         if (!empty($this->accessLogFile) && is_dir(dirname($this->accessLogFile))) {
             file_put_contents($this->accessLogFile, $log, FILE_APPEND);
         }
-        //127.0.0.1 - - [19/Oct/2022:11:06:33 +0800] "GET / HTTP/1.1" 200 4118 "-" "Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/86.0.4240.198 Safari/537.36"
     }
 
     // 错误日志
