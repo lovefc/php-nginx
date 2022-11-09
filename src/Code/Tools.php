@@ -2,39 +2,50 @@
 /*
  * @Author       : lovefc
  * @Date         : 2022-09-03 02:11:36
- * @LastEditTime : 2022-10-21 17:14:35
+ * @LastEditTime : 2022-11-09 16:06:46
  */
 
 namespace FC\Code;
 
 class Tools
-{	
-	// 检查环境
-	public static function checkEnvironment(){
-		$funcs = [
-		    "shell_exec",
-			"proc_open",
-			"popen",
-			"system",
-			"fsockopen",
-			"pfsockopen",
-			"stream_socket_server",
-		];
-		$status = 0;
-		$disEnable = [];
-		foreach($funcs as $v){
-			if(!function_exists($v)){
-				$status = 1;
-				$disEnable[] = $v;
-			}
-		}
-		if( $status == 1 ){
-			$text = implode(",",$disEnable);
-		    echo self::colorFont("\"{$text}\"--Function is disabled,Please delete this function in the option of disable_functions in php.ini!",'红').PHP_EOL;
-		    die();
-		}
-	}
-	
+{
+    // 检查环境
+    public static function checkEnvironment()
+    {
+        $funcs = [
+            "shell_exec",
+            "proc_open",
+            "popen",
+            "system",
+            "fsockopen",
+            "pfsockopen",
+            "stream_socket_server",
+        ];
+        $status = 0;
+        $disEnable = [];
+        foreach ($funcs as $v) {
+            if (!function_exists($v)) {
+                $status = 1;
+                $disEnable[] = $v;
+            }
+        }
+        if ($status == 1) {
+            $text = implode(",", $disEnable);
+            echo self::colorFont("\"{$text}\"--Function is disabled,Please delete this function in the option of disable_functions in php.ini!", '红').PHP_EOL;
+            die();
+        }
+    }
+
+    // 检查url
+    public static function checkUrl($url)
+    {
+        if (filter_var($url, FILTER_VALIDATE_URL) === FALSE) {
+            return false;
+        } else {
+            return true;
+        }
+    }
+
     // 显示颜色文字
     public static function colorFont($str, $font = '', $bg = '', $fs = '')
     {
@@ -74,10 +85,9 @@ class Tools
         $font = $c_font[$font] ?? '';
         return "\033[{$fs};{$bg};{$font}m{$str}\033[0m";
     }
-	
-	// 命令行帮助
-	public static function cmdHelp(){
-		
-	}
-	
+
+    // 命令行帮助
+    public static function cmdHelp()
+    {
+    }
 }

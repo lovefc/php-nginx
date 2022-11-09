@@ -108,7 +108,7 @@ class NginxConf
             $text2 = substr($text, 0, 1);
             foreach (self::$parameters  as $v2) {
                 if ($text2!='#' && preg_match("/^{$v2}\s+/is", $text)) {
-                    if ($v2=='add_header') {
+                    if ($v2=='add_header' || $v2 == 'error_page') {
                         $text = trim(substr($text, strlen($v2)));
                         $_arrs = explode(" ", $text);
                         $confs[$v2][$_arrs[0]] = $_arrs[1];

@@ -2,11 +2,11 @@
 /*
  * @Author       : lovefc
  * @Date         : 2022-09-03 02:11:36
- * @LastEditTime : 2022-11-09 01:38:04
+ * @LastEditTime : 2022-11-09 16:08:56
  */
 namespace FC\Protocol;
 
-use FC\Code\{HttpCode,NginxConf, Client as fpmClient};
+use FC\Code\{HttpCode,NginxConf, Tools, Client as fpmClient};
 
 abstract class HttpInterface
 {
@@ -121,7 +121,7 @@ abstract class HttpInterface
             $this->gzipCompLevel = NginxConf::$Configs[$server_name]['gzip_comp_level'][0] ?? 2;
             $this->gzipTypes = NginxConf::$Configs[$server_name]['gzip_types'] ?? [];
             $this->addHeaders = NginxConf::$Configs[$server_name]['add_header'] ?? [];
-            $this->errorPage = NginxConf::$Configs[$server_name]['error_page'][0] ?? '';
+            $this->errorPage = NginxConf::$Configs[$server_name]['error_page'] ?? '';
             $this->locations = NginxConf::$Configs[$server_name]['location'] ?? '';
             $this->accessLogFile = NginxConf::$Configs[$server_name]['access_log'][0] ?? '';
             $this->errorLogFile = NginxConf::$Configs[$server_name]['error_log'][0] ?? '';
@@ -183,7 +183,15 @@ abstract class HttpInterface
     public function errorPageShow($code)
     {
         if ($this->errorPage) {
-            $this->staticDir($this->errorPage);
+			foreach($this->errorPage as $k=>$v){
+				if($k==$code){
+					if(Tools::checkUrl($v)){
+						$this->sendCode('302', ['Location'=>$v]);
+					}else{
+						$this->staticDir($v);
+					}
+				}
+			}
         } else {
             $text = $this->getHttpCodeValue($code);
             $data = '<html><head><title>'.$text.'</title></head><body><center><h1>'.$text.'</h1></center><hr><center>php-nginx/0.01</center></body></html>';
@@ -322,6 +330,19 @@ abstract class HttpInterface
             $heads = ['Last-Modified'=>$lastTime, 'Cache-Control'=>'max-age='.$time];
             $this->addHeaders = array_merge($this->addHeaders, $heads);
         }
+		
+		if(strtolower($key) == 'return') {
+			if(is_numeric($value)){
+                $this->errorPageShow($value);
+                $this->outputStatus = true;
+                return;
+			}
+			if(Tools::checkUrl($value)){
+                $this->sendCode('302', ['Location'=>$value]);
+                $this->outputStatus = true;
+                return;			   
+            }
+		}
 
         // 解析php
         if (strtolower($key) == 'fastcgi_pass') {
