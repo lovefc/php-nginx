@@ -114,14 +114,15 @@ class App
         $php_path = self::getPhpPath();
         self::$phpPath = $php_path;
         $path = dirname(__DIR__);
+		$app_file = $path.'/app.php';
         foreach (NginxConf::$Configs as $k=>$v) {
             if (!isset($v['listen'])) {
                 break;
             }
             $server_name = $k;
             foreach ($v['listen'] as $port) {
-                $cmd = $php_path.' '.$path.'/app.php -h '.$server_name.' -p '.$port.' -c '.$confFile;
-                $cmd2 = 'Start-Process '.$php_path.' -ArgumentList "'.$path.'/app.php -h '.$server_name.' -p '.$port.' -c '.$confFile;
+                $cmd = $php_path.' '.$app_file.' -h '.$server_name.' -p '.$port.' -c '.$confFile;
+                $cmd2 = 'Start-Process '.$php_path.' -ArgumentList "'.$app_file.' -h '.$server_name.' -p '.$port.' -c '.$confFile;
                 self::execCmd($cmd, $cmd2);
             }
         }
