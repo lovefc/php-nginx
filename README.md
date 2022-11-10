@@ -3,11 +3,11 @@
 用纯php开发的类似于nginx的软件 (功能不多，慢慢摸索添加中。。。)
 
 ****基础功能：****
-*  支持windows|linux启动
-*  跟nginx一样的配置文件
-*   处理静态文件，索引文件以及自动索引；
-*   支持HTTPS；
-*   支持PHP-FPM
+*  支持windows|linux环境
+*  跟nginx类似的配置文件
+*  处理静态文件，索引文件以及目录索引
+*  支持HTTPS
+*  支持PHP-FPM执行php文件
 
 ****基础使用：****
 ```
@@ -22,34 +22,77 @@ php php-nginx [-c filename]   [ start | restart | stop ] [ -v ]
 server 
 {
         #端口号
-        listen  443;
+        listen  80 1993;
+		
 	# 域名
-        server_name php-nginx.com;
+        server_name 127.0.0.1;
+		
 	# 错误跳转
-        #error_page 404/404.html;
+        error_page 404 $path/html/404.html;
+		
+	# 502跳转
+	error_page 502 $path/html/404.html;
+        #error_page 502 https://www.baidu.com/;
+		
 	#SSL证书
-        ssl_certificate  /home/wwwroot/php-static/conf/ssl/server.crt;
-        ssl_certificate_key  /home/wwwroot/php-static/conf/ssl/server.key;
+        #ssl_certificate  $path/conf/ssl/server.crt;
+        #ssl_certificate_key  $path/conf/ssl/server.key;
+		
 	# 主目录
-	root   "/home/wwwroot/php-static/conf";
-	# 默认索引文件
-	index  index.html index.htm;
+        root   $path/html;
+		
+	# 默认索引文件，最前面的优先匹配
+	index  index.php index.html index.htm;
+		
 	#是否启动gzip压缩,on代表启动,off代表开启
 	gzip  on;
+		
 	#需要压缩的常见静态资源
-	gzip_types text/plain application/javascript application/x-javascript text/css application/xml text/javascript application/x-httpd-php image/jpeg image/png;
+	gzip_types text/plain application/javascript application/x-javascript text/css application/xml text/javascript application/x-httpd-php;
+		
 	#压缩的等级,数字选择范围是1-9,数字越小压缩的速度越快,消耗cpu就越大
 	gzip_comp_level 4;
-	#开启目录浏览功能
+		
+	#开启目录浏览功能,就是在没有索引文件的情况下，显示目录文件情况
         autoindex on;
-	#关闭详细文件大小统计，让文件大小显示MB，GB单位，默认为b
-        #autoindex_exact_size off; 
-        #开启以服务器本地时区显示文件修改日期	
-        #autoindex_localtime on;              		
+        
+	# 添加header头，这个案例文件头是用于跨域的
+        #add_header 'Access-Control-Allow-Origin' '*';
+        #add_header 'Access-Control-Allow-Credentials' 'true';  
+        #add_header 'Access-Control-Allow-Methods' 'GET,POST,PUT,DELETE,PATCH,OPTIONS';  
+        #add_header 'Access-Control-Allow-Headers' 'DNT, X-Mx-ReqToken, Keep-Alive, User-Agent, X-Requested-With, If-Modified-Since, Cache-Control, Content-Type, Authorization, token';
+		
+	#访问日志
+	access_log  $path/logs/access2.log;
+		
+	#错误日志
+        error_log  $path/logs/error2.log;
+		
+	#js和css文件缓存,可以指定要缓存的后缀文件
+	#缓存数可以用 数字+英文表示
+	#expires 30s;缓存30秒 
+        #expires 30m;缓存30分钟   
+        #expires 30h;缓存30小时
+        #expires 30d;缓存30天
+        #纯数字只代表秒数
+	
+        location ~*\.(js|css|png|jpg|gif|mp4)$
+	{
+            expires 2h;
+        }	
+		
+	#禁止访问这些问题，return 状态码或者一个网址
+        location ~(\.user.ini|\.htaccess|\.git|\.svn|\.project|LICENSE|README.md)
+	{
+            return http://lovefc.cn;
+	}	
+		
+	#配置php-fpm监听地址，也可以链接远程的fpm监听地址
+        location ~ \.php(.*)$ {
+            fastcgi_pass 127.0.0.1:9000;
+        }          		
 }
 ```
-> 配置需要注意的问题
-> 1.端口号1个配置只支持绑定一个
 
 
 
