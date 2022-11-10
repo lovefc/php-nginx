@@ -2,17 +2,18 @@
 /*
  * @Author       : lovefc
  * @Date         : 2022-09-03 02:11:36
- * @LastEditTime : 2022-11-09 16:08:56
+ * @LastEditTime : 2022-11-11 02:44:44
  */
+
 namespace FC\Protocol;
 
-use FC\Code\{HttpCode,NginxConf, Tools, ErrorHandler, Client as fpmClient};
+use FC\Code\{HttpCode, NginxConf, Tools, ErrorHandler, Client as fpmClient};
 
-abstract class HttpInterface
+class HttpInterface
 {
-	use ErrorHandler;
-	
-    public $protocolHeader= 'HTTP/1.1';
+    use ErrorHandler;
+
+    public $protocolHeader = 'HTTP/1.1';
 
     public $separator = '\r\n';
 
@@ -62,7 +63,7 @@ abstract class HttpInterface
 
     public $addHeaders = [];
 
-    public $errorPage = '';
+    public $errorPage;
 
     public $locations;
 
@@ -82,10 +83,12 @@ abstract class HttpInterface
 
     // 事件
     private $events = [
-        'connect'=>'onConnect',
-        'message'=>'onMessage',
-        'close'=>'onClose'
+        'connect' => 'onConnect',
+        'message' => 'onMessage',
+        'close' => 'onClose'
     ];
+
+    public function socketAccept($server){}
 
     // 初始化参数
     public function init()
@@ -94,8 +97,8 @@ abstract class HttpInterface
         $this->protocolHeader = 'HTTP/1.1';
         $this->separator = '\r\n';
         $this->headers = [
-           'Content-Type'=>'text/html',
-           'Connection'=>'keep-alive',
+            'Content-Type' => 'text/html',
+            'Connection' => 'keep-alive',
         ];
     }
 
@@ -105,17 +108,18 @@ abstract class HttpInterface
         $this->server->start();
     }
 
+    // 获取端口号
     public function getHost($text)
     {
         $tmp = \explode(':', $text);
-        $_SERVER['SERVER_ADDR'] = $tmp[0] ?? '';// 地址
-        $_SERVER['SERVER_PORT'] = $tmp[1] ?? '';// 端口
+        $_SERVER['SERVER_ADDR'] = $tmp[0] ?? ''; // 地址
+        $_SERVER['SERVER_PORT'] = $tmp[1] ?? ''; // 端口
     }
 
     // 设置系统参数
     public function setEnv($server_name)
     {
-        if ($this->setenvStatus ==0) {
+        if ($this->setenvStatus == 0) {
             $this->documentRoot = NginxConf::$Configs[$server_name]['root'][0] ?? null;
             $this->defaultIndex = NginxConf::$Configs[$server_name]['index'] ?? [];
             $this->displayCatalogue = NginxConf::$Configs[$server_name]['autoindex'][0] ?? 'off';
@@ -148,13 +152,15 @@ abstract class HttpInterface
         $tmp = explode("?", $_SERVER['QUERY']);
         $_SERVER['SCRIPT_NAME'] = $_SERVER['DOCUMENT_URI'] =  $_SERVER['PHP_SELF'] = $tmp[0] ?? '';
         $_SERVER['QUERY_STRING'] = $tmp[1] ?? '';
-        $_SERVER['SCRIPT_FILENAME'] = $this->documentRoot.$_SERVER['PHP_SELF'];
+        $_SERVER['SCRIPT_FILENAME'] = $this->documentRoot . $_SERVER['PHP_SELF'];
     }
 
     // 连接
     public function _onConnect($server)
     {
-        $client = $this->socketAccept($server);
+        if (method_exists($this, 'socketAccept')) {
+            $client = $this->socketAccept($server);
+        }
         is_callable($this->onConnect) && call_user_func_array($this->onConnect, [$client]);
         return $client;
     }
@@ -170,12 +176,12 @@ abstract class HttpInterface
         if ($this->handleData($data)) {
             $tmp = explode(":", $_SERVER['Host'])[0];
             $this->setEnv($tmp);
-            $query = IS_WIN ===true ? iconv('UTF-8', 'GB2312', $_SERVER['QUERY']) : $_SERVER['QUERY'];
+            $query = IS_WIN === true ? iconv('UTF-8', 'GB2312', $_SERVER['QUERY']) : $_SERVER['QUERY'];
             $file = $this->getDefaultIndex($query);
             $this->explodeQuery();
             !$this->outputStatus && $this->analysisLocation($_SERVER['PHP_SELF']);
             !$this->outputStatus && $this->staticDir($file);
-            !$this->outputStatus && $this->displayCatalogue=='on' && $this->autoIndex($file);
+            !$this->outputStatus && $this->displayCatalogue == 'on' && $this->autoIndex($file);
             !$this->outputStatus && $this->errorPageShow(404);
             $this->accessLog();
         }
@@ -185,31 +191,31 @@ abstract class HttpInterface
     public function errorPageShow($code)
     {
         if ($this->errorPage) {
-			foreach($this->errorPage as $k=>$v){
-				if($k==$code){
-					if(Tools::checkUrl($v)){
-						$this->sendCode('302', ['Location'=>$v]);
-					}else{
-						$this->staticDir($v);
-					}
-				}
-			}
+            foreach ($this->errorPage as $k => $v) {
+                if ($k == $code) {
+                    if (Tools::checkUrl($v)) {
+                        $this->sendCode('302', ['Location' => $v]);
+                    } else {
+                        $this->staticDir($v);
+                    }
+                }
+            }
         } else {
             $text = $this->getHttpCodeValue($code);
-            $data = '<html><head><title>'.$text.'</title></head><body><center><h1>'.$text.'</h1></center><hr><center>php-nginx/0.01</center></body></html>';
+            $data = '<html><head><title>' . $text . '</title></head><body><center><h1>' . $text . '</h1></center><hr><center>php-nginx/0.01</center></body></html>';
             $this->setHeader($code);
             $this->send($data);
         }
         $this->outputStatus = true;
     }
 
-    // 链接fpm
+    // 连接fpm
     public function fastcgiPHP($host = '127.0.0.1', $port = '9000')
     {
-		if(!filter_var($host, FILTER_VALIDATE_IP)) {
-			$host = 'unix://'.$host;
-			$port = '-1';
-		}
+        if (Tools::checkIp($host) === false) {
+            $host = 'unix://' . $host;
+            $port = '-1';
+        }
         $client = new fpmClient($host, $port);
         $content = $this->clientBody;
         $server = [
@@ -229,8 +235,8 @@ abstract class HttpInterface
             'SCRIPT_NAME' => $_SERVER['SCRIPT_NAME'],
             'DOCUMENT_URI' => $_SERVER['DOCUMENT_URI'],
             'PHP_SELF' => $_SERVER['PHP_SELF'],
-            'HTTP_CONTENT_TYPE'=>$_SERVER['Content-Type'] ?? '',
-            'HTTP_CONTENT_LENGTH'=>$_SERVER['Content-Length'] ?? '',
+            'HTTP_CONTENT_TYPE' => $_SERVER['Content-Type'] ?? '',
+            'HTTP_CONTENT_LENGTH' => $_SERVER['Content-Length'] ?? '',
             'HTTP_HOST' => $_SERVER['SERVER_NAME'] ?? '',
             'HTTP_ACCEPT_LANGUAGE' => $_SERVER['Accept-Language'] ?? '',
             'HTTP_ACCEPT_ENCODING' => $_SERVER['Accept-Encoding'] ?? '',
@@ -262,7 +268,7 @@ abstract class HttpInterface
         $headers = explode("\n", $header_text);
         foreach ($headers as $v) {
             $head2  = explode(":", $v);
-            $v_num = strlen($head2[0].":");
+            $v_num = strlen($head2[0] . ":");
             $v2 = substr($v, $v_num);
             $this->headers[trim($head2[0])] = trim($v2);
         }
@@ -275,33 +281,6 @@ abstract class HttpInterface
         $this->outputStatus = true;
     }
 
-    // 换算时间
-    public function timeConversion($text)
-    {
-        if (empty($text)) {
-            return 0;
-        }
-        $str = strtolower(substr($text, -1));
-        $time = substr($text, 0, strlen($text)-1);
-        switch($str) {
-            case 's':
-                $time = $time;
-                break;
-            case 'm':
-                $time = 60*$time;
-                break;
-            case 'h':
-                $time = 3600*$time;
-                break;
-            case 'd':
-                $time = 86400*$time;
-                break;
-            default:
-                $time =  $text;
-        }
-        return $time;
-    }
-
     // 缓存文件
     public function cacheFile($cacheTime)
     {
@@ -310,7 +289,7 @@ abstract class HttpInterface
         if ($since) {
             $sinceTime = strtotime($since);
             if (($sinceTime + $cacheTime) >= $time) {
-                $this->sendCode(304, ['Last-Modified'=>date('r'), 'Cache-Control'=>'max-age='.$cacheTime]);
+                $this->sendCode(304, ['Last-Modified' => date('r'), 'Cache-Control' => 'max-age=' . $cacheTime]);
                 $this->outputStatus = true;
                 return true;
             }
@@ -325,32 +304,27 @@ abstract class HttpInterface
         $arrs = array_values(array_filter(explode(" ", trim($text))));
         $key = $arrs[0] ?? '';
         $value = $arrs[1] ?? '';
-        // 缓存
         if (strtolower($key) == 'expires') {
-            $time = $this->timeConversion($value);
+            $time = Tools::timeConversion($value);
             if ($this->cacheFile($time)) {
                 return true;
             }
             $lastTime = date('r');
-            //'Expires'=> date('r',time() + 7200), 'Age'=>7200,'Accept-Ranges'=>'bytes','Etag'=>md5($_SERVER['SCRIPT_FILENAME']),
-            $heads = ['Last-Modified'=>$lastTime, 'Cache-Control'=>'max-age='.$time];
+            $heads = ['Last-Modified' => $lastTime, 'Cache-Control' => 'max-age=' . $time];
             $this->addHeaders = array_merge($this->addHeaders, $heads);
         }
-		
-		if(strtolower($key) == 'return') {
-			if(is_numeric($value)){
+        if (strtolower($key) == 'return') {
+            if (is_numeric($value)) {
                 $this->errorPageShow($value);
                 $this->outputStatus = true;
                 return;
-			}
-			if(Tools::checkUrl($value)){
-                $this->sendCode('302', ['Location'=>$value]);
-                $this->outputStatus = true;
-                return;			   
             }
-		}
-
-        // 解析php
+            if (Tools::checkUrl($value)) {
+                $this->sendCode('302', ['Location' => $value]);
+                $this->outputStatus = true;
+                return;
+            }
+        }
         if (strtolower($key) == 'fastcgi_pass') {
             if (!is_file($_SERVER['SCRIPT_FILENAME'])) {
                 return false;
@@ -369,7 +343,7 @@ abstract class HttpInterface
     public function analysisLocation($query)
     {
         if (!empty($this->locations)) {
-            foreach ($this->locations as $k=>$v) {
+            foreach ($this->locations as $k => $v) {
                 if (preg_match("/{$k}/i", $query, $matches)) {
                     $this->analysisLocationValue($v);
                 }
@@ -384,37 +358,54 @@ abstract class HttpInterface
             return false;
         }
         // 这里是解决访问不带/的目录出错的问题
-        if (substr($dir, -1)!='/') {
-            $_SERVER['QUERY'] = $_SERVER['QUERY'].'/';
-            $this->sendCode('302', ['Location'=>$_SERVER['QUERY']]);
+        if (substr($dir, -1) != '/') {
+            $_SERVER['QUERY'] = $_SERVER['QUERY'] . '/';
+            $this->sendCode('302', ['Location' => $_SERVER['QUERY']]);
             return true;
         }
         $handler = opendir($dir);
         $files = $dirs = [];
+        $i = 0;
+        $max_len = 0;
         while (($filename = readdir($handler)) !== false) {
             if ($filename !== "." && $filename !== "..") {
-                $path = $dir.DIRECTORY_SEPARATOR.$filename;
+                $path = $dir . DIRECTORY_SEPARATOR . $filename;
                 if (is_file($path)) {
-                    $files[] = $filename;
+                    $files[$i]['filename'] = $filename;
+                    $files[$i]['uptime'] = filemtime($path);
+                    $filename = iconv('utf-8', 'gb2312', $filename);
+                    $len =  strlen($filename);
+					$files[$i]['filesize'] = Tools::transfByte(filesize($path));
+                    if ($max_len < $len) {
+                        $max_len = $len;
+                    }
                 }
                 if (is_dir($path)) {
-                    $dirs[] = $filename."/";
+                    $dirs[] = $filename . "/";
                 }
+                $i++;
             }
         }
+        $max_len += 15;
         closedir($handler);
-        $html = '<html><head><title>Index of /</title></head><body><h1>Index of '.$_SERVER['QUERY'].'</h1><hr><pre><a href="../">../</a><br />';
-        foreach ($dirs as  $value) {
-            $html .= "<a href=\"./{$value}\">{$value}</a><br />";
+        $html = '<html><head><title>Index of /</title></head><body><h1>Index of ' . $_SERVER['PHP_SELF'] . '</h1><hr><pre><a href="../">../</a>' . PHP_EOL;
+        foreach ($dirs as  $d) {
+            $html .= "<a href=\"./{$d}\">{$d}</a>" . Tools::spaces($d, $max_len) . " -" . PHP_EOL;
         }
-        foreach ($files as  $value) {
-            $html .="<a href=\"./{$value}\">{$value}</a> <br />";
+        foreach ($files as  $k => $f) {
+            $name = $f['filename'];
+            $uptime = date("Y-m-d H:i:s", $f['uptime']);
+			$filesize = $f['filesize'];
+            $html .= "<a href=\"./{$name}\">{$name}</a>" . Tools::spaces($name, $max_len) . " " . $uptime . "             ".$filesize.PHP_EOL;
         }
-        $html .= '</body></html>';
-        $this->setHeader(200, ['Content-Type'=>'text/html']);
+        $html .= '</pre><hr></body></html>';
+        $this->setHeader(200, ['Content-Type' => 'text/html']);
         $this->send($html);
         $this->outputStatus = true;
+		$files = $dirs = [];
+		$html = '';
     }
+
 
     // 关闭
     public function _onClose($fd)
@@ -428,21 +419,21 @@ abstract class HttpInterface
     {
         $response = '';
         if (is_array($header) && count($header) > 0) {
-            foreach ($header as $k=>$v) {
-                if ($k=='Content-Type') {
-                    $response .= "{$k}:{$v};charset=UTF-8".$this->separator;
+            foreach ($header as $k => $v) {
+                if ($k == 'Content-Type') {
+                    $response .= "{$k}:{$v};charset=UTF-8" . $this->separator;
                 } else {
-                    $response .= "{$k}:{$v}".$this->separator;
+                    $response .= "{$k}:{$v}" . $this->separator;
                 }
             }
         }
-        $response .= "Content-length:".$this->bodyLen.$this->separator;
+        $response .= "Content-length:" . $this->bodyLen . $this->separator;
         $response .= $this->separator;
-        return $this->protocolHeader . " ". $this->getHttpCodeValue($code) . $this->separator . $response;
+        return $this->protocolHeader . " " . $this->getHttpCodeValue($code) . $this->separator . $response;
     }
 
     // 发送状态码
-    public function sendCode($code, $headers=[])
+    public function sendCode($code, $headers = [])
     {
         $this->setHeader($code, $headers);
         $response =  $this->_getHeader($code, $headers);
@@ -458,18 +449,18 @@ abstract class HttpInterface
             $this->headers = $headers;
         }
     }
-	
+
     // 发送消息
-    public function send($data, $bodylen=0)
+    public function send($data, $bodylen = 0)
     {
         $str_len =  strlen($data); // 当前字符串大小
-        $bodylen = ($bodylen==0) ? $str_len : $bodylen;	// 判断有没有传入大小
+        $bodylen = ($bodylen == 0) ? $str_len : $bodylen;    // 判断有没有传入大小
         // 说明只有一片
         if ($str_len == $bodylen) {
             $this->body = $data;
             $this->bodyLen = $str_len;
         } else {
-            $len = $this->bodyLen+$str_len;
+            $len = $this->bodyLen + $str_len;
             $this->body .= $data;
             $this->bodyLen += $str_len;
             if ($len < $bodylen) {
@@ -486,15 +477,15 @@ abstract class HttpInterface
         $response = stripcslashes($response);
         $response .= $this->body;
         $this->server->send($this->fd, $response);
-        $this->body = $this->clientBody ='';
-        $this->bodyLen	= 0;
+        $this->body = $this->clientBody = '';
+        $this->bodyLen    = 0;
         $this->clientHeads = [];
     }
 
     // 访问日志
     public function accessLog()
     {
-        $log = $_SERVER['REMOTE_ADDR']." - - ".date("Y-m-d H:i:s")." ".$_SERVER['REQUEST_METHOD']." ".$_SERVER['QUERY']." ".$_SERVER['SERVER_PROTOCOL']." \"".$_SERVER['User-Agent']."\"".PHP_EOL;
+        $log = $_SERVER['REMOTE_ADDR'] . " - - " . date("Y-m-d H:i:s") . " " . $_SERVER['REQUEST_METHOD'] . " " . $_SERVER['QUERY'] . " " . $_SERVER['SERVER_PROTOCOL'] . " \"" . $_SERVER['User-Agent'] . "\"" . PHP_EOL;
         echo $log;
         if (!empty($this->accessLogFile) && is_dir(dirname($this->accessLogFile))) {
             file_put_contents($this->accessLogFile, $log, FILE_APPEND);
@@ -506,9 +497,9 @@ abstract class HttpInterface
     {
         if (!empty($this->errorLogFile) && is_dir(dirname($this->errorLogFile)) && !empty($log)) {
             file_put_contents($this->errorLogFile, $log, FILE_APPEND);
-        }	
-		$this->errorPageShow(502);
-		//$this->server->closeStock($this->fd);
+        }
+        $this->errorPageShow(502);
+        //$this->server->closeStock($this->fd);
     }
 
     // 获取状态码-根据code找值
@@ -526,8 +517,7 @@ abstract class HttpInterface
     // 处理数据
     public function handleData($data)
     {
-        //有文件头，来处理head头
-        //if (stripos($data, $this->protocolHeader)) {
+        // 来处理head头
         if (!$this->firstRead && stripos($data, $this->protocolHeader)) {
             $buffer = explode("\r\n\r\n", $data);
             $data2 = $buffer[0] ?? '';
@@ -540,12 +530,11 @@ abstract class HttpInterface
             // 这里，修复了时间戳的问题,不可只用:号来分割
             foreach ($header as $v) {
                 $head2  = explode(":", $v);
-                $v_num = strlen($head2[0].":");
+                $v_num = strlen($head2[0] . ":");
                 $v2 = substr($v, $v_num);
                 $head[trim($head2[0])] = trim($v2);
                 $this->clientHeads[trim($head2[0])] = trim($v2);
             }
-            //如果没有这个值
             if (!isset($head['If-Modified-Since']) && isset($_SERVER['If-Modified-Since'])) {
                 unset($_SERVER['If-Modified-Since']);
             }
@@ -557,7 +546,6 @@ abstract class HttpInterface
         } else {
             $this->clientBody .= $data;
         }
-
         if (!isset($_SERVER['Content-Length'])) {
             $this->firstRead = 0;
             return true;
@@ -590,19 +578,19 @@ abstract class HttpInterface
     // 获取索引文件路径
     public function getDefaultIndex($query)
     {
-        $arr =parse_url($query);
+        $arr = parse_url($query);
         $path =  $arr['path'] ?? '';
-        $query2 = isset($arr['query']) ? "?".$arr['query'] : '';
+        $query2 = isset($arr['query']) ? "?" . $arr['query'] : '';
         if (substr($path, -1) == '/') {
             foreach ($this->defaultIndex as $index) {
-                $file = $this->documentRoot.$path.$index;
+                $file = $this->documentRoot . $path . $index;
                 if (is_file($file)) {
-                    $_SERVER['QUERY'] = $path.$index."{$query2}";
+                    $_SERVER['QUERY'] = $path . $index . "{$query2}";
                     return $file;
                 }
             }
         }
-        return $this->documentRoot.$path;
+        return $this->documentRoot . $path;
     }
 
     // 静态目录绑定
@@ -610,7 +598,7 @@ abstract class HttpInterface
     {
         if (isset($this->files[$file]) || is_file($file)) {
             if (empty($this->types)) {
-                $this->types = include(__DIR__.DIRECTORY_SEPARATOR.'Type.php');
+                $this->types = include(__DIR__ . DIRECTORY_SEPARATOR . 'Type.php');
             }
             $type = $this->types;
             $ext = $this->getExt($file);
@@ -619,14 +607,14 @@ abstract class HttpInterface
             $time = time();
             $is_cache = 0;
             if ($connect_type) {
-                $headers = ['Content-Type'=>$connect_type,  'Accept-Ranges'=>'bytes', 'Data'=>$lastTime];
+                $headers = ['Content-Type' => $connect_type,  'Accept-Ranges' => 'bytes', 'Data' => $lastTime];
                 if ($this->gzip == 'on' && in_array($connect_type, $this->gzipTypes)) {
-                    $headers['Content-Encoding']='gzip';//deflate';
+                    $headers['Content-Encoding'] = 'gzip'; //deflate';
                 }
 
                 $this->setHeader(200, $headers);
             } else {
-                $headers = ["Content-Type"=>"application/octet-stream","Content-Transfer-Encoding"=>"Binary", "Content-disposition"=>"attachment","filename"=>basename($file)];
+                $headers = ["Content-Type" => "application/octet-stream", "Content-Transfer-Encoding" => "Binary", "Content-disposition" => "attachment", "filename" => basename($file)];
                 $this->setHeader(200, $headers);
             }
             if ($is_cache == 0) {
@@ -641,7 +629,7 @@ abstract class HttpInterface
                 }
                 $type = null;
                 // 如果大于1000的文件，就重新搞
-                if (count($this->files)>1000) {
+                if (count($this->files) > 1000) {
                     $this->files = [];
                 }
                 $this->outputStatus = true;

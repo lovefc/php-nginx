@@ -2,7 +2,7 @@
 /*
  * @Author       : lovefc
  * @Date         : 2022-09-03 02:11:36
- * @LastEditTime : 2022-11-09 16:06:46
+ * @LastEditTime : 2022-11-11 02:34:34
  */
 
 namespace FC\Code;
@@ -16,7 +16,6 @@ class Tools
             "shell_exec",
             "proc_open",
             "popen",
-            "system",
             "fsockopen",
             "pfsockopen",
             "stream_socket_server",
@@ -31,7 +30,7 @@ class Tools
         }
         if ($status == 1) {
             $text = implode(",", $disEnable);
-            echo self::colorFont("\"{$text}\"--Function is disabled,Please delete this function in the option of disable_functions in php.ini!", '红').PHP_EOL;
+            echo self::colorFont("\"{$text}\"--Function is disabled,Please delete this function in the option of disable_functions in php.ini!", '红') . PHP_EOL;
             die();
         }
     }
@@ -44,6 +43,75 @@ class Tools
         } else {
             return true;
         }
+    }
+
+    // 检查IP
+    public static function checkIp($ip)
+    {
+        if (filter_var($ip, FILTER_VALIDATE_IP) === FALSE) {
+            return false;
+        } else {
+            return true;
+        }
+    }
+
+    // 生成空格
+    public static function spaces($str, $max = 120)
+    {
+        $str = iconv('utf-8', 'gb2312', $str);
+        $len = strlen($str);
+        $text = '';
+        for ($len; $len <= $max; $len++) {
+            $text .= " ";
+        }
+        return $text;
+    }
+
+    // 换算大小
+    public static function transfByte($byte)
+    {
+        $KB = 1024;
+        $MB = $KB * 1024;
+        $GB = $MB * 1024;
+        $TB = $GB * 1024;
+        if ($byte < $KB) {
+            return $byte . ' B';
+        } elseif ($byte < $MB) {
+            return round($byte / $KB, 2) . ' KB';
+        } elseif ($byte < $GB) {
+            return round($byte / $MB, 2) . ' MB';
+        } elseif ($byte < $TB) {
+            return round($byte / $GB, 2) . ' GB';
+        } else {
+            return round($byte / $TB, 2) . ' TB';
+        }
+    }
+
+    // 换算时间
+    public static function timeConversion($text)
+    {
+        if (empty($text)) {
+            return 0;
+        }
+        $str = strtolower(substr($text, -1));
+        $time = substr($text, 0, strlen($text) - 1);
+        switch ($str) {
+            case 's':
+                $time = $time;
+                break;
+            case 'm':
+                $time = 60 * $time;
+                break;
+            case 'h':
+                $time = 3600 * $time;
+                break;
+            case 'd':
+                $time = 86400 * $time;
+                break;
+            default:
+                $time =  $text;
+        }
+        return $time;
     }
 
     // 显示颜色文字
