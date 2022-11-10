@@ -78,9 +78,12 @@ class Worker
         //$context 8.0 可以为空,在其它版本下，如果不需要设置，则必须设置为一个空数组
         $errno = 0;
         $errmsg = '';
+		set_error_handler(function () {});
         $this->socket = stream_socket_server($local_text, $errno, $errmsg, $flags, $context);
+		restore_error_handler();
         if (!is_resource($this->socket)) {
-            throw new \Exception("{$local_socket} Creation failed.");
+			echo PHP_EOL."{$local_socket} Creation failed.";
+			return;
         }
         // ssl 先不进行加密
         if ($this->transport === 'ssl') {
