@@ -11,11 +11,14 @@
 
 ****基础使用：****
 ```
-php php-nginx [-c filename]   [ start | restart | stop ] [ -v ] 
+php index.php [-c filename]   [ start | restart | stop ] [ -v ] 
 ```
 **\-c** 为 php-nginx 指定一个配置文件，来代替缺省的。
 
 **\-v** 显示 nginx 的版本。
+
+>> 在linux环境下，可以使用 php index.php -c filename [ start | restart | stop ] 来进行对单一配置的操作
+>> windows环境下，则不行，重启和停止都是全部重启，全部停止
 
 ****配置信息(目前已支持的语法)：****
 ```
