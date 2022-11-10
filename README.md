@@ -2,6 +2,8 @@
 
 用纯php开发的类似于nginx的软件 (功能不多，慢慢摸索添加中。。。)
 
+[English](https://github.com/lovefc/php-nginx/doc/readme-en.md) | 中文介绍
+
 ****基础功能：****
 *  支持windows|linux环境
 *  支持域名绑定
@@ -99,6 +101,7 @@ server
 ```
 
 > 配置中的$path代表当前目录,如果要配置其它目录,请填写全绝对路径
+
 > 日志和错误日志读写，要确保目录有可读写权限，在root所属的目录，可能无法创建日志文件
 
 
