@@ -128,7 +128,7 @@ class NginxConf
                     }
                     if ($v2=='add_header' || $v2 == 'error_page') {
                         $_arrs = explode(" ", $text);
-                        $confs[$v2][$_arrs[0]] = realpath(trim($_arrs[1]));
+                        $confs[$v2][$_arrs[0]] = trim($_arrs[1]);
                     } else {
                         $arrs = array_values(array_filter(explode(" ", $text)));
                         $confs[$v2] = $arrs;
