@@ -2,7 +2,7 @@
 
 Nginx developed with php
 
-[Chinese](https://github.com/lovefc/php-nginx/readme.md) | English
+[Chinese](https://github.com/lovefc/php-nginx/blob/master/README.md) | English
 
 ****Basic functions:****
 *  Support windows|linux environment

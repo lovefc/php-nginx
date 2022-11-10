@@ -2,7 +2,7 @@
 
 用纯php开发的类似于nginx的软件 (功能不多，慢慢摸索添加中。。。)
 
-[English](https://github.com/lovefc/php-nginx/doc/readme-en.md) | 中文介绍
+[English](https://github.com/lovefc/php-nginx/blob/master/doc/readme-en.md) | 中文介绍
 
 ****基础功能：****
 *  支持windows|linux环境
