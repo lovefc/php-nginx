@@ -62,7 +62,7 @@ class App
      *
      * @return void
      */
-    public static function config()
+    public static function getPhpIni()
     {
         $php_ini = '';
         // php -info(-ini)也能获取到phpinfo的配置
@@ -83,9 +83,9 @@ class App
      * @param [type] $cmd2
      * @return void
      */
-    public static function execCmd($cmd, $cmd2)
+    public static function execCmd($cmd)
     {
-        if (substr(php_uname(), 0, 7) == "Windows") {
+        if (IS_WIN == true) {
             $cmd = "start {$cmd}";
             pclose(popen($cmd, "r"));
         } else {
@@ -113,7 +113,8 @@ class App
         }
         $php_path = self::getPhpPath();
         self::$phpPath = $php_path;
-        $path = dirname(__DIR__);
+        $path = dirname(__DIR__);		
+		self::startWinFpm($path);
         $app_file = $path.'/run.php';
         foreach (NginxConf::$Configs as $k=>$v) {
             if (!isset($v['listen'])) {
@@ -123,7 +124,7 @@ class App
             foreach ($v['listen'] as $port) {
                 $cmd = $php_path.' '.$app_file.' -h '.$server_name.' -p '.$port.' -c '.$confFile;
                 $cmd2 = 'Start-Process '.$php_path.' -ArgumentList "'.$app_file.' -h '.$server_name.' -p '.$port.' -c '.$confFile;
-                self::execCmd($cmd, $cmd2);
+                self::execCmd($cmd);
             }
         }
     }
@@ -223,7 +224,7 @@ class App
      * @return string
      */
     public static function linuxStop($confFile='')
-    {
+    {		
         $name = 'php.nginx';
         if (!empty($confFile)) {
             $name = md5($confFile);
@@ -250,9 +251,27 @@ class App
     public static function winStop()
     {
         $win_cmd = 'taskkill /T /F /im php.exe 2>NUL 1>NUL';
-        system($win_cmd);
+        self::execCmd($win_cmd);
+	    $win_cmd2 = 'taskkill /T /F /im php-cgi.exe 2>NUL 1>NUL';
+        self::execCmd($win_cmd2);	
+		$win_cmd3 = 'taskkill /T /F /im php-cgi-spawner.exe 2>NUL 1>NUL';
+        self::execCmd($win_cmd3);		
         return 'PHP-NGINX Stoping....';
     }
+	
+	// 启动win的fpm
+	public static function startWinFpm($path){
+		if (IS_WIN == true) {	
+			$spawner = $path.DIRECTORY_SEPARATOR.'php-cgi-spawner.exe';
+			$php_ini = self::getPhpIni();
+			$cgiPath = dirname(self::$phpPath).DIRECTORY_SEPARATOR.'php-cgi.exe';
+			if(!is_file($cgiPath)){
+				throw new \Exception('php-cgi.exe does not exist!');
+			}
+		    $cmd =$spawner.' "'.$cgiPath.' -c '.$php_ini.'" 9000 4+16';
+			self::execCmd($cmd);
+		}
+	}	
 
     /**
      * 停止运行

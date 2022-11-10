@@ -206,6 +206,9 @@ abstract class HttpInterface
     // 链接fpm
     public function fastcgiPHP($host = '127.0.0.1', $port = '9000')
     {
+		if(!filter_var($host, FILTER_VALIDATE_IP)) {
+			$port = '-1';
+		}
         $client = new fpmClient($host, $port);
         $content = $this->clientBody;
         $server = [
@@ -354,7 +357,7 @@ abstract class HttpInterface
             $tmp = explode(":", $value);
             $host = $tmp[0] ?? false;
             $port = $tmp[1] ?? false;
-            if (!$host || !$port) {
+            if (!$host) {
                 return false;
             }
             $this->fastcgiPHP($host, $port);
@@ -606,7 +609,7 @@ abstract class HttpInterface
     {
         if (isset($this->files[$file]) || is_file($file)) {
             if (empty($this->types)) {
-                $this->types = include(__DIR__.'/Type.php');
+                $this->types = include(__DIR__.DIRECTORY_SEPARATOR.'Type.php');
             }
             $type = $this->types;
             $ext = $this->getExt($file);
