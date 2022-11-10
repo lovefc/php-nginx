@@ -207,6 +207,7 @@ abstract class HttpInterface
     public function fastcgiPHP($host = '127.0.0.1', $port = '9000')
     {
 		if(!filter_var($host, FILTER_VALIDATE_IP)) {
+			$host = 'unix://'.$host;
 			$port = '-1';
 		}
         $client = new fpmClient($host, $port);
