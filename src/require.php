@@ -39,3 +39,5 @@ $base_dir = __DIR__;
 
 // 自动加载
 \FC\Code\LoaderClass::register();
+ 
+ 

@@ -6,10 +6,12 @@
  */
 namespace FC\Protocol;
 
-use FC\Code\{HttpCode,NginxConf, Tools, Client as fpmClient};
+use FC\Code\{HttpCode,NginxConf, Tools, ErrorHandler, Client as fpmClient};
 
 abstract class HttpInterface
 {
+	use ErrorHandler;
+	
     public $protocolHeader= 'HTTP/1.1';
 
     public $separator = '\r\n';
@@ -452,6 +454,7 @@ abstract class HttpInterface
             $this->headers = $headers;
         }
     }
+	
     // 发送消息
     public function send($data, $bodylen=0)
     {
@@ -479,10 +482,9 @@ abstract class HttpInterface
         $response = stripcslashes($response);
         $response .= $this->body;
         $this->server->send($this->fd, $response);
-        $this->body = '';
+        $this->body = $this->clientBody ='';
         $this->bodyLen	= 0;
         $this->clientHeads = [];
-        $this->clientBody = '';
     }
 
     // 访问日志
@@ -496,9 +498,13 @@ abstract class HttpInterface
     }
 
     // 错误日志
-    public function errorLog()
+    public function errorLog($log)
     {
-        //2022/10/19 11:05:53 [warn] 34572#24684: conflicting server name "cs.com" on 0.0.0.0:80, ignored
+        if (!empty($this->errorLogFile) && is_dir(dirname($this->errorLogFile)) && !empty($log)) {
+            file_put_contents($this->errorLogFile, $log, FILE_APPEND);
+        }	
+		$this->errorPageShow(502);
+		//$this->server->closeStock($this->fd);
     }
 
     // 获取状态码-根据code找值

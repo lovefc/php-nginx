@@ -2,7 +2,7 @@
 /*
  * @Author       : lovefc
  * @Date         : 2022-09-03 02:11:36
- * @LastEditTime : 2022-11-09 02:09:45
+ * @LastEditTime : 2022-11-10 12:36:01
  */
 
 namespace FC\Code;
@@ -114,7 +114,7 @@ class App
         $php_path = self::getPhpPath();
         self::$phpPath = $php_path;
         $path = dirname(__DIR__);
-		$app_file = $path.'/app.php';
+        $app_file = $path.'/run.php';
         foreach (NginxConf::$Configs as $k=>$v) {
             if (!isset($v['listen'])) {
                 break;
@@ -157,6 +157,9 @@ class App
         } else {
             $obj = new \FC\Protocol\Http("0.0.0.0:{$port}", []);
         }
+        register_shutdown_function([$obj,"fatalHandler"]);
+        set_error_handler([$obj,"errorHandler"]);
+        //set_exception_handler([$obj,"errorException"]);
         /*
         $obj->on('connect', function ($fd) {
         });
@@ -231,11 +234,11 @@ class App
             return 'Please start php-nginx first!';
         }
         $arr = array_filter(explode(PHP_EOL, $output));
-		if(!empty($arr)){
+        if (!empty($arr)) {
             foreach ($arr as $pid) {
-               shell_exec("kill -9 {$pid} >/dev/null 2>&1");
+                shell_exec("kill -9 {$pid} >/dev/null 2>&1");
             }
-		}
+        }
         return 'PHP-NGINX Stoping....';
     }
 

@@ -2,7 +2,7 @@
 /*
  * @Author       : lovefc
  * @Date         : 2022-09-03 02:11:36
- * @LastEditTime : 2022-11-09 01:21:21
+ * @LastEditTime : 2022-11-10 12:35:56
  */
 
 namespace FC\Code;
@@ -245,7 +245,14 @@ class Worker
     public function send($client, $data)
     {
         if (is_resource($client)) {
-            fwrite($client, $data);
+            if (fwrite($client, $data) === false || fflush($client) === false) {
+                $info = stream_get_meta_data($client);
+                if ($info['timed_out']) {
+                    throw new \Exception('Write timed out');
+                }
+                fclose($client);
+                throw new \Exception('Failed to write request to socket');
+            }
         }
     }
 

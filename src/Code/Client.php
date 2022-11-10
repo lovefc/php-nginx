@@ -12,7 +12,7 @@ class ForbiddenException extends \Exception
 /**
  * PHP FastCGI 客户端
  * 来源：https://github.com/adoy/PHP-FastCGI-Client
- * 这个源码我改过一些东西，为了让它适应更高的php版本
+ * 这个源码我已经修改过一些东西，请勿替换 by lovefc
  */
 class Client
 {
@@ -217,8 +217,6 @@ class Client
      */
     private function connect()
     {
-        set_error_handler(function () {
-        }, E_ALL);
         if (! $this->_sock) {
             if ($this->_persistentSocket) {
                 $this->_sock = pfsockopen($this->_host, $this->_port, $errno, $errstr, $this->_connectTimeout / 1000);
@@ -232,7 +230,6 @@ class Client
                 throw new \Exception('Unable to set timeout on socket');
             }
         }
-        restore_error_handler();
     }
 
     /**
@@ -341,7 +338,6 @@ class Client
         $ret['contentLength'] = (ord($data[4]) << 8) + ord($data[5]);
         $ret['paddingLength'] = ord($data[6]);
         $ret['reserved']      = ord($data[7]);
-
         return $ret;
     }
 
@@ -413,8 +409,8 @@ class Client
         try {
             $info = $this->wait_for_response($id);
         } catch (\Exception $e) {
-            //echo $e->getMessage();
-            return null;
+            echo $e->getMessage().PHP_EOL;
+			return null;
         }
         return $info;
     }
@@ -440,9 +436,10 @@ class Client
         try {
             $this->connect();
         } catch (\Exception $e) {
-            echo $e->getMessage();
-            return null;
+            echo $e->getMessage().PHP_EOL;
+			return null;
         }
+		//
         // Pick random number between 1 and max 16 bit unsigned int 65535
         $id = mt_rand(1, (1 << 16) - 1);
         // Using persistent sockets implies you want them keept alive by server!
@@ -467,7 +464,7 @@ class Client
         if (fwrite($this->_sock, $request) === false || fflush($this->_sock) === false) {
             $info = stream_get_meta_data($this->_sock);
             if ($info['timed_out']) {
-                throw new TimedOutException('Write timed out');
+                throw new \Exception('Write timed out');
             }
             // Broken pipe, tear down so future requests might succeed
             fclose($this->_sock);
@@ -537,10 +534,10 @@ class Client
             //我们必须重置超时，但必须是在我们获得信息之后
             $this->set_ms_timeout($this->_readWriteTimeout);
             if ($info['timed_out']) {
-                throw new TimedOutException('Read timed out');
+                throw new \Exception('Read timed out');
             }
             if ($info['unread_bytes'] == 0 && $info['blocked'] && $info['eof']) {
-                throw new ForbiddenException('Not in white list. Check listen.allowed_clients.');
+                throw new \Exception('Not in white list. Check listen.allowed_clients.');
             }
             throw new \Exception('Read failed');
         }
