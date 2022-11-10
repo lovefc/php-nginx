@@ -37,7 +37,7 @@ server
         error_page 404 $path/html/404.html;
 		
 	# 502跳转
-	error_page 502 $path/html/404.html;
+	error_page 502 $path/html/50x.html;
         #error_page 502 https://www.baidu.com/;
 		
 	#SSL证书
@@ -69,10 +69,10 @@ server
         #add_header 'Access-Control-Allow-Headers' 'DNT, X-Mx-ReqToken, Keep-Alive, User-Agent, X-Requested-With, If-Modified-Since, Cache-Control, Content-Type, Authorization, token';
 		
 	#访问日志
-	access_log  $path/logs/access2.log;
+	access_log  $path/logs/access.log;
 		
 	#错误日志
-        error_log  $path/logs/error2.log;
+        error_log  $path/logs/error.log;
 		
 	#js和css文件缓存,可以指定要缓存的后缀文件
 	#缓存数可以用 数字+英文表示
@@ -87,7 +87,7 @@ server
             expires 2h;
         }	
 		
-	#禁止访问这些问题，return 状态码或者一个网址
+	#禁止访问这些文件，return 状态码或者一个网址
         location ~(\.user.ini|\.htaccess|\.git|\.svn|\.project|LICENSE|README.md)
 	{
             return http://lovefc.cn;

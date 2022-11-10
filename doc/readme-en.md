@@ -37,7 +37,7 @@ server
         error_page 404 $path/html/404.html;
 		
 	# 502 jump
-	error_page 502 $path/html/404.html;
+	error_page 502 $path/html/50x.html;
         #error_page 502 https://www.baidu.com/;
 		
 	#SSL certificate
@@ -69,10 +69,10 @@ server
         #add_header 'Access-Control-Allow-Headers' 'DNT, X-Mx-ReqToken, Keep-Alive, User-Agent, X-Requested-With, If-Modified-Since, Cache-Control, Content-Type, Authorization, token';
 		
 	#Access log
-	access_log  $path/logs/access2.log;
+	access_log  $path/logs/access.log;
 		
 	#Error_log
-        error_log  $path/logs/error2.log;
+        error_log  $path/logs/error.log;
 		
 	#File cache, you can specify the suffix file to cache.
 	#The number of caches can be represented by numbers+English.
@@ -87,7 +87,7 @@ server
             expires 2h;
         }	
 		
-	#Do not access these questions, return status code or a URL
+	#Access to these files is prohibited, return status code or a URL
         location ~(\.user.ini|\.htaccess|\.git|\.svn|\.project|LICENSE|README.md)
 	{
             return http://lovefc.cn;
