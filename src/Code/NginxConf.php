@@ -198,7 +198,7 @@ class NginxConf
         $conf = self::getConf($path);
         foreach ($conf['server_name'] as $v) {
             if (isset(self::$Configs[$v])) {
-                die(Tools::colorFont("{$v}-The domain name is bound, and it is bound repeatedly, Please check the configuration!", "红"));
+                die(Tools::colorFont("{$v}-The domain name is bound, and it is bound repeatedly, Please check the configuration!", "红").PHP_EOL);
             }
             self::$Configs[$v] = $conf;
         }

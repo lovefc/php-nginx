@@ -146,7 +146,7 @@ class App
         cli_set_process_title($process_title);// PHP 5.5.0 可用
         $cert = NginxConf::$Configs[$server_name]['ssl_certificate'][0] ?? null;
         $key  = NginxConf::$Configs[$server_name]['ssl_certificate_key'][0] ?? null;
-        if (!empty($cert) && !empty($key)) {
+        if (!empty($cert) && !empty($key) && $port!='80') {
             $context_option = [
                 'ssl' => [
                     'local_cert'  => $cert, // 也可以是crt文件
