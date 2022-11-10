@@ -2,7 +2,7 @@
 /*
  * @Author       : lovefc
  * @Date         : 2022-10-21 16:36:41
- * @LastEditTime : 2022-11-09 01:24:46
+ * @LastEditTime : 2022-11-10 12:31:09
  */
 
 namespace FC\Code;
@@ -10,7 +10,7 @@ namespace FC\Code;
 class NginxConf
 {
     public static $Configs = [];
-    
+
     /**
      * 要匹配的字符串
      *
@@ -36,6 +36,20 @@ class NginxConf
     ];
 
     /**
+     * 包含目录的字符串
+     *
+     * @var array
+     */
+    public static $dirs = [
+        'error_page',
+        'root',
+        'ssl_certificate',
+        'ssl_certificate_key',
+        'access_log',
+        'error_log'
+    ];
+
+    /**
      * 要匹配的符号
      *
      * @var array
@@ -58,7 +72,7 @@ class NginxConf
 
     /**
      * 获取文件夹内指定后缀的所有文件
-     * 
+     *
      * @param array $result 结果集
      * @param string $dir 指定目录
      * @param array $filter 后缀过滤，为空即全部文件
@@ -108,15 +122,15 @@ class NginxConf
             $text2 = substr($text, 0, 1);
             foreach (self::$parameters  as $v2) {
                 if ($text2!='#' && preg_match("/^{$v2}\s+/is", $text)) {
+                    $text = trim(substr($text, strlen($v2)));
+                    if (in_array($v2, self::$dirs)) {
+                        $text = str_replace('$path', PATH, $text);
+                    }
                     if ($v2=='add_header' || $v2 == 'error_page') {
-                        $text = trim(substr($text, strlen($v2)));
                         $_arrs = explode(" ", $text);
-                        $confs[$v2][$_arrs[0]] = $_arrs[1];
+                        $confs[$v2][$_arrs[0]] = realpath(trim($_arrs[1]));
                     } else {
-                        if ($v2=='root') {
-                            $text = preg_replace("/\"/i", "", $text);
-                        }
-                        $arrs = array_values(array_filter(explode(" ", trim(substr($text, strlen($v2))))));
+                        $arrs = array_values(array_filter(explode(" ", $text)));
                         $confs[$v2] = $arrs;
                     }
                 }
@@ -124,7 +138,9 @@ class NginxConf
         }
     }
 
+/*
 
+*/
     /**
      * 匹配location字符串
      *
@@ -148,7 +164,7 @@ class NginxConf
 
     /**
      * 读取nginx配置文件信息
-     * 
+     *
      * @param string $file 文件地址
      * @return array
      */
@@ -173,7 +189,7 @@ class NginxConf
 
     /**
      * 读取配置
-     * 
+     *
      * @param string $path 文件地址
      * @return void
      */
@@ -190,7 +206,7 @@ class NginxConf
 
     /**
      * 读取所有配置
-     * 
+     *
      * @param string $path 文件地址
      */
     public static function readAllConf($path='', $extensions=['conf'])
