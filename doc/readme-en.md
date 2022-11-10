@@ -1,10 +1,10 @@
-### PHP-Nginx
+# PHP-Nginx
 
 Nginx developed with php
 
 [Chinese](https://github.com/lovefc/php-nginx/blob/master/README.md) | English
 
-****Basic functions:****
+## Basic functions
 *  Support windows|linux environment
 *  Supporting addon domain
 *  Configuration files similar to nginx
@@ -12,7 +12,7 @@ Nginx developed with php
 *  HTTPS support
 *  Support php-FPM to execute PHP files
 
-****Basic use：****
+## Basic use
 ```
 php index.php [-c filename]   [ start | restart | stop ] [ -v ] 
 ```
@@ -23,11 +23,11 @@ php index.php [-c filename]   [ start | restart | stop ] [ -v ]
 > Under linux environment, you can use PHP index.php-c filename [start | restart | stop] to operate on a single configuration.
 > Under the windows environment, it won't work. Restart and stop are all restarts and all stops.
 
-****Configuration information：****
+## Configuration information
 ```
 server 
 {
-        #Port number, multiple supported, separated by spaces
+        # Port number, multiple supported, separated by spaces
         listen  80 1993;
 		
 	# Domain name, support multiple, separated by spaces
@@ -40,7 +40,7 @@ server
 	error_page 502 $path/html/50x.html;
         #error_page 502 https://www.baidu.com/;
 		
-	#SSL certificate
+	# SSL certificate
         #ssl_certificate  $path/conf/ssl/server.crt;
         #ssl_certificate_key  $path/conf/ssl/server.key;
 		
@@ -50,50 +50,50 @@ server
 	# Default index file, the first priority match
 	index  index.php index.html index.htm;
 		
-	#Whether to start gzip compression, on means to start, off means to start.
+	# Whether to start gzip compression, on means to start, off means to start.
 	gzip  on;
 		
-	#Common static resources that need to be compressed
+	# Common static resources that need to be compressed
 	gzip_types text/plain application/javascript application/x-javascript text/css application/xml text/javascript application/x-httpd-php;
 		
-	#Compression level, the number selection range is 1-9, the smaller the number, the faster the compression speed, and the greater the cpu consumption.
+	# Compression level, the number selection range is 1-9, the smaller the number, the faster the compression speed, and the greater the cpu consumption.
 	gzip_comp_level 4;
 		
-	#Turn on the directory browsing function, that is, display directory files without index files.
+	# Turn on the directory browsing function, that is, display directory files without index files.
         autoindex on;
         
-	#Add the header, which is used for cross-domain.
+	# Add the header, which is used for cross-domain.
         #add_header 'Access-Control-Allow-Origin' '*';
         #add_header 'Access-Control-Allow-Credentials' 'true';  
         #add_header 'Access-Control-Allow-Methods' 'GET,POST,PUT,DELETE,PATCH,OPTIONS';  
         #add_header 'Access-Control-Allow-Headers' 'DNT, X-Mx-ReqToken, Keep-Alive, User-Agent, X-Requested-With, If-Modified-Since, Cache-Control, Content-Type, Authorization, token';
 		
-	#Access log
+	# Access log
 	access_log  $path/logs/access.log;
 		
-	#Error_log
+	# Error_log
         error_log  $path/logs/error.log;
 		
-	#File cache, you can specify the suffix file to cache.
-	#The number of caches can be represented by numbers+English.
-	#expires 30s;Cache for 30 seconds
-        #expires 30m;Cache for 30 minutes   
-        #expires 30h;Cache for 30 hours
-        #expires 30d;Cache for 30 days
-        #Pure numbers only represent seconds
+	# File cache, you can specify the suffix file to cache.
+	# The number of caches can be represented by numbers+English.
+	# expires 30s;Cache for 30 seconds
+        # expires 30m;Cache for 30 minutes   
+        # expires 30h;Cache for 30 hours
+        # expires 30d;Cache for 30 days
+        # Pure numbers only represent seconds
 	
         location ~*\.(js|css|png|jpg|gif|mp4)$
 	{
             expires 2h;
         }	
 		
-	#Access to these files is prohibited, return status code or a URL
+	# Access to these files is prohibited, return status code or a URL
         location ~(\.user.ini|\.htaccess|\.git|\.svn|\.project|LICENSE|README.md)
 	{
             return http://lovefc.cn;
 	}	
 		
-	#Configure the php-fpm listening address, or link the remote fpm listening address,Or use "/run/php/php7.4-fpm.sock".
+	# Configure the php-fpm listening address, or link the remote fpm listening address,Or use "/run/php/php7.4-fpm.sock".
         location ~ \.php(.*)$ {
             fastcgi_pass 127.0.0.1:9000;
         }          		
@@ -104,5 +104,14 @@ server
 
 > And to ensure that the directory has read-write permission.
 
+## Thanks
 
+Thanks to the following open source projects for supporting php-nginx
+
+* [PHP-FastCGI-Client](https://github.com/adoy/PHP-FastCGI-Client/) (PHP FastCGI)
+* [PHP-CGI-Spawner](https://github.com/deemru/php-cgi-spawner/) (Windows FastCG)
+
+## LICENSE
+
+php-nginx is released under the [MIT license](https://github.com/lovefc/php-nginx/blob/master/LICENSE)
 
