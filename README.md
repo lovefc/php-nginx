@@ -93,7 +93,7 @@ server
             return http://lovefc.cn;
 	}	
 		
-	#配置php-fpm监听地址，也可以链接远程的fpm监听地址
+	#配置php-fpm监听地址，也可以链接远程的fpm监听地址,或者使用"/run/php/php7.4-fpm.sock"
         location ~ \.php(.*)$ {
             fastcgi_pass 127.0.0.1:9000;
         }          		
@@ -102,7 +102,7 @@ server
 
 > 配置中的$path代表当前目录,如果要配置其它目录,请填写全绝对路径
 
-> 日志和错误日志读写，要确保目录有可读写权限，在root所属的目录，可能无法创建日志文件
+> 日志和错误日志读写，要确保目录有可读写权限
 
 
 

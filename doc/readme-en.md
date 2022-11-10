@@ -93,7 +93,7 @@ server
             return http://lovefc.cn;
 	}	
 		
-	#Configure the php-fpm listening address, or link the remote fpm listening address.
+	#Configure the php-fpm listening address, or link the remote fpm listening address,Or use "/run/php/php7.4-fpm.sock".
         location ~ \.php(.*)$ {
             fastcgi_pass 127.0.0.1:9000;
         }          		
@@ -102,7 +102,7 @@ server
 
 > The configured $path represents the current directory. If you want to configure other directories, please fill in the absolute path.
 
-> And to ensure that the directory has read-write permission, the log file may not be created in the directory where root belongs.
+> And to ensure that the directory has read-write permission.
 
 
 
