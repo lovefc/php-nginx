@@ -4,6 +4,7 @@
 
 ****基础功能：****
 *  支持windows|linux环境
+*  支持域名绑定
 *  跟nginx类似的配置文件
 *  处理静态文件，索引文件以及目录索引
 *  支持HTTPS
@@ -24,10 +25,10 @@ php index.php [-c filename]   [ start | restart | stop ] [ -v ]
 ```
 server 
 {
-        #端口号
+        #端口号，支持多个，空格隔开
         listen  80 1993;
 		
-	# 域名
+	# 域名,支持多个,空格隔开
         server_name 127.0.0.1;
 		
 	# 错误跳转
