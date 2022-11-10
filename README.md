@@ -17,8 +17,8 @@ php index.php [-c filename]   [ start | restart | stop ] [ -v ]
 
 **\-v** 显示 nginx 的版本。
 
->> 在linux环境下，可以使用 php index.php -c filename [ start | restart | stop ] 来进行对单一配置的操作
->> windows环境下，则不行，重启和停止都是全部重启，全部停止
+> 在linux环境下，可以使用 php index.php -c filename [ start | restart | stop ] 来进行对单一配置的操作
+> windows环境下，则不行，重启和停止都是全部重启，全部停止
 
 ****配置信息(目前已支持的语法)：****
 ```
@@ -96,6 +96,9 @@ server
         }          		
 }
 ```
+
+> 配置中的$path代表当前目录,如果要配置其它目录,请填写全绝对路径
+> 日志和错误日志读写，要确保目录有可读写权限，在root所属的目录，可能无法创建日志文件
 
 
 
