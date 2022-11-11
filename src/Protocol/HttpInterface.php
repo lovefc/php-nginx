@@ -249,7 +249,7 @@ class HttpInterface
         ];
         $server = array_merge($this->clientHeads, $server);
         $client->setConnectTimeout(100);
-        $client->setReadWriteTimeout(500);
+        $client->setReadWriteTimeout(1000);
         //$client->setKeepAlive(true);
         $text = $client->request($server, $content);
         if (empty($text)) {
@@ -271,15 +271,17 @@ class HttpInterface
             return;
         }
         $headers = explode("\n", $header_text);
+		$_headers = [];
         foreach ($headers as $v) {
             $head2  = explode(":", $v);
             $v_num = strlen($head2[0] . ":");
             $v2 = substr($v, $v_num);
-            $this->headers[trim($head2[0])] = trim($v2);
+            $_headers[trim($head2[0])] = trim($v2);
         }
+		print_r($_headers);
         /** 这里要获取到fpm里面设置的状态码和header头 **/
-        $code = isset($this->headers['Status']) ? $this->getHttpCode($this->headers['Status']) : 200;
-        $this->setHeader($code, $this->headers);
+        $code = isset($_headers['Status']) ? $this->getHttpCode($_headers['Status']) : 200;
+        $this->setHeader($code, $_headers);
         $this->send($content);
         $server = [];
         $this->clientBody = $client = '';
@@ -491,7 +493,7 @@ class HttpInterface
     public function accessLog()
     {
         $log = $_SERVER['REMOTE_ADDR'] . " - - " . date("Y-m-d H:i:s") . " " . $_SERVER['REQUEST_METHOD'] . " " . $_SERVER['QUERY'] . " " . $_SERVER['SERVER_PROTOCOL'] . " \"" . $_SERVER['User-Agent'] . "\"" . PHP_EOL;
-        echo $log;
+        //echo $log;
         if (!empty($this->accessLogFile) && is_dir(dirname($this->accessLogFile))) {
             file_put_contents($this->accessLogFile, $log, FILE_APPEND);
         }
