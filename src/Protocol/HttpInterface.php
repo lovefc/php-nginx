@@ -260,6 +260,11 @@ class HttpInterface
         $arr = explode("\r\n\r\n", $text);
         $header_text = $arr[0] ?? [];
         $content = $arr[1] ?? '';
+		if(strstr($header_text,"PHP message:")){
+			$tmp = explode("\n",$header_text);
+			$tmp2 = preg_split("/(Status:|Content-Type:)+/",$tmp[0]);
+			$content = $tmp2[0];
+		}
         if (trim($content) == 'File not found.') {
             $this->errorPageShow(404);
             $this->outputStatus = true;
