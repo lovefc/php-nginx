@@ -278,7 +278,6 @@ class HttpInterface
             $v2 = substr($v, $v_num);
             $_headers[trim($head2[0])] = trim($v2);
         }
-		print_r($_headers);
         /** 这里要获取到fpm里面设置的状态码和header头 **/
         $code = isset($_headers['Status']) ? $this->getHttpCode($_headers['Status']) : 200;
         $this->setHeader($code, $_headers);
