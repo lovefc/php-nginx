@@ -1,8 +1,8 @@
 ![php-nginx](logo.svg)
 
-用纯php开发的类似于nginx的软件 (功能不多，慢慢摸索添加中。。。)
+用php开发的类似nginx的应用,可用于学习
 
-[English](https://github.com/lovefc/php-nginx/blob/master/doc/readme-en.md) | 中文介绍
+中文介绍 | [English](https://github.com/lovefc/php-nginx/blob/master/doc/readme-en.md)
 
 ## 基础功能
 *  支持windows|linux环境
