@@ -2,7 +2,7 @@
 /*
  * @Author       : lovefc
  * @Date         : 2022-09-03 02:11:36
- * @LastEditTime : 2022-11-12 14:54:52
+ * @LastEditTime : 2022-11-12 18:19:08
  */
 
 namespace FC\Protocol;
@@ -45,8 +45,6 @@ class HttpInterface
 
     public $files = [];
 
-    public $isHand = [];
-
     public $outputStatus = false;
 
     public $documentRoot = null;
@@ -72,8 +70,6 @@ class HttpInterface
     public $accessLogFile = '';
 
     public $errorLogFile = '';
-
-    public $setenvStatus = 0;
 
     public $remoteAddress;
 
@@ -123,27 +119,24 @@ class HttpInterface
     // 设置系统参数
     public function setEnv($server_name)
     {
-        if ($this->setenvStatus == 0) {
-            $this->documentRoot = NginxConf::$Configs[$server_name]['root'][0] ?? null;
-            $this->defaultIndex = NginxConf::$Configs[$server_name]['index'] ?? [];
-            $this->displayCatalogue = NginxConf::$Configs[$server_name]['autoindex'][0] ?? 'off';
-            $this->gzip = NginxConf::$Configs[$server_name]['gzip'][0] ?? 'off';
-            $this->gzipCompLevel = NginxConf::$Configs[$server_name]['gzip_comp_level'][0] ?? 2;
-            $this->gzipTypes = NginxConf::$Configs[$server_name]['gzip_types'] ?? [];
-            $this->addHeaders = NginxConf::$Configs[$server_name]['add_header'] ?? [];
-            $this->errorPage = NginxConf::$Configs[$server_name]['error_page'] ?? '';
-            $this->locations = NginxConf::$Configs[$server_name]['location'] ?? '';
-            $this->accessLogFile = NginxConf::$Configs[$server_name]['access_log'][0] ?? '';
-            $this->errorLogFile = NginxConf::$Configs[$server_name]['error_log'][0] ?? '';
-            $_SERVER['DOCUMENT_ROOT'] = $_SERVER['PATH_TRANSLATED'] =  $this->documentRoot;
-            $_SERVER['SERVER_SOFTWARE'] = 'php-nginx/0.01';
-            $this->setenvStatus = 1;
-            $_SERVER['REQUEST_SCHEME'] = $this->requestScheme;
-            $_SERVER['HTTP_HOST'] = $server_name;
-            $_SERVER['SERVER_NAME'] = $server_name;
-            $_SERVER['SERVER_PROTOCOL'] = $this->protocolHeader;
-            $_SERVER['GATEWAY_INTERFACE'] = 'CGI/1.1';
-        }
+        $this->documentRoot = NginxConf::$Configs[$server_name]['root'][0] ?? null;
+        $this->defaultIndex = NginxConf::$Configs[$server_name]['index'] ?? [];
+        $this->displayCatalogue = NginxConf::$Configs[$server_name]['autoindex'][0] ?? 'off';
+        $this->gzip = NginxConf::$Configs[$server_name]['gzip'][0] ?? 'off';
+        $this->gzipCompLevel = NginxConf::$Configs[$server_name]['gzip_comp_level'][0] ?? 2;
+        $this->gzipTypes = NginxConf::$Configs[$server_name]['gzip_types'] ?? [];
+        $this->addHeaders = NginxConf::$Configs[$server_name]['add_header'] ?? [];
+        $this->errorPage = NginxConf::$Configs[$server_name]['error_page'] ?? '';
+        $this->locations = NginxConf::$Configs[$server_name]['location'] ?? '';
+        $this->accessLogFile = NginxConf::$Configs[$server_name]['access_log'][0] ?? '';
+        $this->errorLogFile = NginxConf::$Configs[$server_name]['error_log'][0] ?? '';
+        $_SERVER['DOCUMENT_ROOT'] = $_SERVER['PATH_TRANSLATED'] =  $this->documentRoot;
+        $_SERVER['SERVER_SOFTWARE'] = 'php-nginx/0.01';
+        $_SERVER['REQUEST_SCHEME'] = $this->requestScheme;
+        $_SERVER['HTTP_HOST'] = $server_name;
+        $_SERVER['SERVER_NAME'] = $server_name;
+        $_SERVER['SERVER_PROTOCOL'] = $this->protocolHeader;
+        $_SERVER['GATEWAY_INTERFACE'] = 'CGI/1.1';
         $address = explode(":", $this->remoteAddress);
         $_SERVER['REMOTE_ADDR'] = $address[0] ?? '';
         $_SERVER['REMOTE_PORT'] = $address[1] ?? '';
@@ -284,9 +277,9 @@ class HttpInterface
         }
         /** 这里要获取到fpm里面设置的状态码和header头 **/
         $code = isset($_headers['Status']) ? $this->getHttpCode($_headers['Status']) : 200;
-		if(isset($_headers['Content-Length'])){
-			$_headers['Content-Length'] = strlen($content);
-		}
+        if (isset($_headers['Content-Length'])) {
+            $_headers['Content-Length'] = strlen($content);
+        }
         $this->setHeader($code, $_headers);
         $this->send($content);
         $server = [];
@@ -314,9 +307,9 @@ class HttpInterface
     public function analysisLocationValue($text)
     {
         $text = str_replace(";", '', $text);
-        $arrs = array_values(array_filter(explode(" ", trim($text))));
-        $key = $arrs[0] ?? '';
-        $value = $arrs[1] ?? '';
+        $arr = array_values(array_filter(explode(" ", trim($text))));
+        $key = $arr[0] ?? '';
+        $value = $arr[1] ?? '';
         if (strtolower($key) == 'expires') {
             $time = Tools::timeConversion($value);
             if ($this->cacheFile($time)) {
