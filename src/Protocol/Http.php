@@ -23,7 +23,7 @@ class Http extends HttpInterface
 
     public function socketAccept($server)
     {
-        $client = stream_socket_accept($server, 0, $this->remoteAddress);
+        $client = stream_socket_accept($server, 5, $this->remoteAddress);
         return $client;
     }
 }

@@ -2,7 +2,7 @@
 /*
  * @Author       : lovefc
  * @Date         : 2022-09-03 02:11:36
- * @LastEditTime : 2022-11-11 02:44:44
+ * @LastEditTime : 2022-11-12 14:54:52
  */
 
 namespace FC\Protocol;
@@ -22,6 +22,8 @@ class HttpInterface
     public $body = '';
 
     public $bodyLen = 0;
+
+    public $rangeSize = 1000 * 1000 * 1;
 
     public $headers;
 
@@ -47,11 +49,11 @@ class HttpInterface
 
     public $outputStatus = false;
 
-    public $documentRoot = null; // 主目录
+    public $documentRoot = null;
 
-    public $defaultIndex = []; // 默认索引文件
+    public $defaultIndex = [];
 
-    public $requestScheme = null; // http|https
+    public $requestScheme = null;
 
     public $displayCatalogue = false;
 
@@ -88,7 +90,9 @@ class HttpInterface
         'close' => 'onClose'
     ];
 
-    public function socketAccept($server){}
+    public function socketAccept($server)
+    {
+    }
 
     // 初始化参数
     public function init()
@@ -260,18 +264,18 @@ class HttpInterface
         $arr = explode("\r\n\r\n", $text);
         $header_text = $arr[0] ?? [];
         $content = $arr[1] ?? '';
-		if(strstr($header_text,"PHP message:")){
-			$tmp = explode("\n",$header_text);
-			$tmp2 = preg_split("/(Status:|Content-Type:)+/",$tmp[0]);
-			$content = $tmp2[0];
-		}
+        if (strstr($header_text, "PHP message:")) {
+            $tmp = explode("\n", $header_text);
+            $tmp2 = preg_split("/(Status:|Content-Type:)+/", $tmp[0]);
+            $content = $tmp2[0];
+        }
         if (trim($content) == 'File not found.') {
             $this->errorPageShow(404);
             $this->outputStatus = true;
             return;
         }
         $headers = explode("\n", $header_text);
-		$_headers = [];
+        $_headers = [];
         foreach ($headers as $v) {
             $head2  = explode(":", $v);
             $v_num = strlen($head2[0] . ":");
@@ -280,6 +284,9 @@ class HttpInterface
         }
         /** 这里要获取到fpm里面设置的状态码和header头 **/
         $code = isset($_headers['Status']) ? $this->getHttpCode($_headers['Status']) : 200;
+		if(isset($_headers['Content-Length'])){
+			$_headers['Content-Length'] = strlen($content);
+		}
         $this->setHeader($code, $_headers);
         $this->send($content);
         $server = [];
@@ -381,7 +388,7 @@ class HttpInterface
                     $files[$i]['uptime'] = filemtime($path);
                     $filename = iconv('utf-8', 'gb2312', $filename);
                     $len =  strlen($filename);
-					$files[$i]['filesize'] = Tools::transfByte(filesize($path));
+                    $files[$i]['filesize'] = Tools::transfByte(filesize($path));
                     if ($max_len < $len) {
                         $max_len = $len;
                     }
@@ -401,15 +408,15 @@ class HttpInterface
         foreach ($files as  $k => $f) {
             $name = $f['filename'];
             $uptime = date("Y-m-d H:i:s", $f['uptime']);
-			$filesize = $f['filesize'];
-            $html .= "<a href=\"./{$name}\">{$name}</a>" . Tools::spaces($name, $max_len) . " " . $uptime . "             ".$filesize.PHP_EOL;
+            $filesize = $f['filesize'];
+            $html .= "<a href=\"./{$name}\">{$name}</a>" . Tools::spaces($name, $max_len) . " " . $uptime . "             " . $filesize . PHP_EOL;
         }
         $html .= '</pre><hr></body></html>';
         $this->setHeader(200, ['Content-Type' => 'text/html']);
         $this->send($html);
         $this->outputStatus = true;
-		$files = $dirs = [];
-		$html = '';
+        $files = $dirs = [];
+        $html = '';
     }
 
 
@@ -421,9 +428,34 @@ class HttpInterface
 
 
     // 解析获取的文件头
+    public function _getHeader2($code, $header = [])
+    {
+        $response = '';
+        if (is_array($header) && count($header) > 0) {
+            foreach ($header as $k => $v) {
+                if ($k == 'Content-Type') {
+                    //;charset=UTF-8
+                    $response .= "{$k}:{$v}" . $this->separator;
+                } else {
+                    $response .= "{$k}:{$v}" . $this->separator;
+                }
+            }
+        }
+        $response .= "Content-Length:" . $this->bodyLen . $this->separator;
+        $response .= $this->separator;
+        return $this->protocolHeader . " " . $this->getHttpCodeValue($code) . $this->separator . $response;
+    }
+
+    // 解析获取的文件头
     public function _getHeader($code, $header = [])
     {
         $response = '';
+        if (!isset($header["Content-Length"])) {
+            $len = $this->bodyLen;
+        } else {
+            $len = $header["Content-Length"];
+            unset($header["Content-Length"]);
+        }
         if (is_array($header) && count($header) > 0) {
             foreach ($header as $k => $v) {
                 if ($k == 'Content-Type') {
@@ -433,10 +465,11 @@ class HttpInterface
                 }
             }
         }
-        $response .= "Content-length:" . $this->bodyLen . $this->separator;
+        $response .= "Content-Length:" . $len . $this->separator;
         $response .= $this->separator;
         return $this->protocolHeader . " " . $this->getHttpCodeValue($code) . $this->separator . $response;
     }
+
 
     // 发送状态码
     public function sendCode($code, $headers = [])
@@ -457,36 +490,26 @@ class HttpInterface
     }
 
     // 发送消息
-    public function send($data, $bodylen = 0)
+    public function send($data)
     {
-        $str_len =  strlen($data); // 当前字符串大小
-        $bodylen = ($bodylen == 0) ? $str_len : $bodylen;    // 判断有没有传入大小
-        // 说明只有一片
-        if ($str_len == $bodylen) {
-            $this->body = $data;
-            $this->bodyLen = $str_len;
-        } else {
-            $len = $this->bodyLen + $str_len;
-            $this->body .= $data;
-            $this->bodyLen += $str_len;
-            if ($len < $bodylen) {
-                return false;
-            }
-        }
+        $len =  strlen($data); // 当前字符串大小
         // gzip压缩
         if (isset($this->headers['Content-Encoding'])  && $this->headers['Content-Encoding'] == 'gzip') {
-            $this->body = \gzencode($this->body);
-            $this->bodyLen = strlen($this->body);
+            $data = \gzencode($data);
+            $len = strlen($data);
         }
+        $this->headers['Content-Length'] = $len;
         $this->headers = array_merge($this->headers, $this->addHeaders);
         $response =  $this->_getHeader($this->headerCode, $this->headers);
         $response = stripcslashes($response);
-        $response .= $this->body;
+        $response .= $data;
         $this->server->send($this->fd, $response);
-        $this->body = $this->clientBody = '';
-        $this->bodyLen    = 0;
+        $this->clientBody = '';
         $this->clientHeads = [];
+        $this->body = '';
+        $this->bodyLen = 0;
     }
+
 
     // 访问日志
     public function accessLog()
@@ -541,8 +564,12 @@ class HttpInterface
                 $head[trim($head2[0])] = trim($v2);
                 $this->clientHeads[trim($head2[0])] = trim($v2);
             }
+            /** 检查http头中的字段 **/
             if (!isset($head['If-Modified-Since']) && isset($_SERVER['If-Modified-Since'])) {
                 unset($_SERVER['If-Modified-Since']);
+            }
+            if (!isset($head['Range']) && isset($_SERVER['Range'])) {
+                unset($_SERVER['Range']);
             }
             $_SERVER = array_merge($_SERVER, $head);
             $_SERVER['METHOD'] = $_SERVER['REQUEST_METHOD'] = $method;
@@ -571,16 +598,6 @@ class HttpInterface
         return strtolower($ext);
     }
 
-    // 打开文件
-    public function readTheFile($path)
-    {
-        $handle = fopen($path, "r");
-        while (!feof($handle)) {
-            yield fread($handle, 65535);
-        }
-        fclose($handle);
-    }
-
     // 获取索引文件路径
     public function getDefaultIndex($query)
     {
@@ -599,7 +616,7 @@ class HttpInterface
         return $this->documentRoot . $path;
     }
 
-    // 静态目录绑定
+    // 访问静态文件
     public function staticDir($file)
     {
         if (isset($this->files[$file]) || is_file($file)) {
@@ -611,36 +628,70 @@ class HttpInterface
             $connect_type = $type[$ext] ?? null;
             $lastTime = date('r');
             $time = time();
-            $is_cache = 0;
+            $rangeSize = $this->rangeSize; // 这里是1m
+            // 读取文件大小
+            if (isset($this->files[$file])) {
+                $filesize = $this->files[$file];
+            } else {
+                $filesize = filesize($file);
+            }
             if ($connect_type) {
-                $headers = ['Content-Type' => $connect_type,  'Accept-Ranges' => 'bytes', 'Data' => $lastTime];
+                // 分段传输，针对于大文件
+                if (isset($this->clientHeads['Range'])) {
+                    $rangeLen = preg_replace('/bytes=(\d+)-/i', '${1}', $this->clientHeads['Range']);
+                    $data = $this->readTheFile($file, $rangeLen, $rangeSize);
+                    $len = strlen($data);
+                    $maxLen = $rangeLen + $len; //这个就是一共传输的字节数
+                    /**
+                     * 设定文件头的时候一定要注意这里
+                     * Content-Length表示本次读取的大小
+                     * Content-Range的公式：bytes $rangeLen-($rangeLen+$len-1)/$filesize
+                     */
+                    $headers = ['Content-Type' => $connect_type, 'Content-Length' => $len, 'Data' => $lastTime, 'Connection' => 'keep-alive', 'Content-Range' => 'bytes ' . $rangeLen . '-' . ($maxLen - 1) . '/' . $filesize];
+                    $this->setHeader(206, $headers);
+                } else {
+                    // 第一次读取，必须要返回200状态码
+                    $data = $this->readTheFile($file, 0, $rangeSize);
+                    $len = strlen($data);
+                    $headers = ['Content-Type' => $connect_type, 'Content-Length' => $filesize, 'Connection' => 'keep-alive', 'Data' => $lastTime];
+                    // 如果读取的文件小于总数，就不开启分片传输
+                    if ($len < $filesize) {
+                        $headers['Accept-Ranges'] = 'bytes';
+                    }
+                    $this->setHeader(200, $headers);
+                }
+                /** 判断是否开启gzip **/
                 if ($this->gzip == 'on' && in_array($connect_type, $this->gzipTypes)) {
                     $headers['Content-Encoding'] = 'gzip'; //deflate';
                 }
-
-                $this->setHeader(200, $headers);
             } else {
                 $headers = ["Content-Type" => "application/octet-stream", "Content-Transfer-Encoding" => "Binary", "Content-disposition" => "attachment", "filename" => basename($file)];
                 $this->setHeader(200, $headers);
             }
-            if ($is_cache == 0) {
-                if (isset($this->files[$file])) {
-                    $filesize = $this->files[$file];
-                } else {
-                    $filesize = filesize($file);
-                }
-                // 常规的循环读取
-                foreach ($this->readTheFile($file) as $data) {
-                    $this->send($data, $filesize);
-                }
-                $type = null;
-                // 如果大于1000的文件，就重新搞
-                if (count($this->files) > 1000) {
-                    $this->files = [];
-                }
-                $this->outputStatus = true;
+            $this->send($data);
+            $type = null;
+            // 如果大于1000的文件，就重新搞
+            if (count($this->files) > 1000) {
+                $this->files = [];
             }
+            $this->outputStatus = true;
         }
+    }
+
+    // 打开文件
+    public function readTheFile($path, $start = 0, $length = null)
+    {
+        $size = filesize($path);
+        if ($start < 0) {
+            $start += $size;
+        }
+        if ($length === null) {
+            $length = $size - $start;
+        }
+        if ($length > $size) {
+            $length = $size;
+        }
+        return file_get_contents($path, false, null, $start, $length);
     }
 
     // 事件绑定

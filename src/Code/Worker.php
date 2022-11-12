@@ -33,7 +33,7 @@ class Worker
 
     public $port;
 
-    protected $selectTimeout = 100000000;
+    protected $selectTimeout = 1000000000;
 
     // 事件
     private $events = [
@@ -180,7 +180,11 @@ class Worker
         $read = $this->socketList[$this->protocol];
         $write = $this->_writeFds;
         $except = $this->_exceptFds;
-        stream_select($read, $write, $except, 0, $this->selectTimeout);
+		if($read || $write || $except){
+            stream_select($read, $write, $except, 0, $this->selectTimeout);
+		}else{
+           $this->selectTimeout >= 1 && usleep($this->selectTimeout);
+		}
         foreach ($read as $socket) {
             if ($socket === $this->socket) {
                 $this->createSocket();
@@ -230,11 +234,15 @@ class Worker
         if (!$client) {
             return false;
         }
+
         $buffer = fread($client, 65535);
         // 关闭链接
+		
         if (empty($buffer) && (feof($client) || !is_resource($client))) {
             $this->closeStock($client);
+			//return;
         }
+		
         is_callable($this->onReceive) && call_user_func_array($this->onReceive, [$this->socket, $client, $buffer]);
     }
 
@@ -249,6 +257,8 @@ class Worker
     {
         if (is_resource($client)) {
             if (fwrite($client, $data) === false || fflush($client) === false) {
+				$timeoutMs = 1000;
+				stream_set_timeout($client, floor($timeoutMs / 1000), ($timeoutMs % 1000) * 1000);
                 $info = stream_get_meta_data($client);
                 if ($info['timed_out']) {
                     throw new \Exception('Write timed out');

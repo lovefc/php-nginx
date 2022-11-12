@@ -44,7 +44,7 @@ class Https extends HttpInterface
         // 第二个参数是无延迟
         set_error_handler(function () {
         });
-        if ($client = stream_socket_accept($socket, 0, $this->remoteAddress)) {
+        if ($client = stream_socket_accept($socket, 5, $this->remoteAddress)) {
             $client = $this->https($client);
         }
         restore_error_handler();
