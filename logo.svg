@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- by lovefc ;stroke:rgb(0,0,0);stroke-width:1; -->
+<svg version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="300" height="100">
+<rect width="300" height="90" style="fill:#FFF;stroke-opacity:0;" />
+<text x="60" y="65" font-size="50" text-anchor="middle" style="fill: #000;">PHP</text>
+<rect x="115" y= "15" rx="8" ry="8" width="171" height="60" style="fill:#f90;stroke-width:1;stroke:rgb(0,0,0);" />
+<text x="200" y="65" font-size="50" text-anchor="middle" style="fill: #000;">NGINX</text>
+</svg>

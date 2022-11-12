@@ -1,4 +1,4 @@
-<h1 style="background:-webkit-linear-gradient(top, white, #bdd1e6, white);">PHP-NGINX</h1>
+![php-nginx](logo.svg)
 
 用纯php开发的类似于nginx的软件 (功能不多，慢慢摸索添加中。。。)
 
