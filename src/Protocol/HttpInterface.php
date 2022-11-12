@@ -2,7 +2,7 @@
 /*
  * @Author       : lovefc
  * @Date         : 2022-09-03 02:11:36
- * @LastEditTime : 2022-11-12 18:19:08
+ * @LastEditTime : 2022-11-13 01:11:00
  */
 
 namespace FC\Protocol;
@@ -78,6 +78,12 @@ class HttpInterface
     private $fpmClient;
 
     private $firstRead = false; // 首次读取
+
+    private $downTypes = [
+        'application/zip',
+        'application/msword',
+        'application/octet-stream',
+    ];
 
     // 事件
     private $events = [
@@ -491,7 +497,8 @@ class HttpInterface
             $data = \gzencode($data);
             $len = strlen($data);
         }
-        $this->headers['Content-Length'] = $len;
+        if (!isset($this->headers['Content-Length'])) $this->headers['Content-Length'] = $len;
+        $this->headers['Status'] = $this->headerCode;
         $this->headers = array_merge($this->headers, $this->addHeaders);
         $response =  $this->_getHeader($this->headerCode, $this->headers);
         $response = stripcslashes($response);
@@ -612,6 +619,7 @@ class HttpInterface
     // 访问静态文件
     public function staticDir($file)
     {
+        // 这里为了加快速度,缓存一下文件大小
         if (isset($this->files[$file]) || is_file($file)) {
             if (empty($this->types)) {
                 $this->types = include(__DIR__ . DIRECTORY_SEPARATOR . 'Type.php');
@@ -628,7 +636,24 @@ class HttpInterface
             } else {
                 $filesize = filesize($file);
             }
-            if ($connect_type) {
+            if ($connect_type == null || in_array($connect_type, $this->downTypes)) {
+                $headers = ['Content-Length' => $filesize, 'Data' => $lastTime];
+                $headers["Content-Type"] = "application/octet-stream";
+                $headers["Content-Transfer-Encoding"] = "Binary";
+                $headers["Content-disposition"] = "attachment";
+                $headers["filename"] = basename($file);
+                $code = 200;
+                $this->setHeader($code, $headers);
+                // 常规的循环读取
+                foreach ($this->readForFile($file) as $k => $data) {
+                    if ($k == 0) {
+                        $response =  $this->_getHeader($code, $headers);
+                        $response = stripcslashes($response);
+                        $data = $response . $data;
+                    }
+                    $this->server->send($this->fd, $data);
+                }
+            } else {
                 // 分段传输，针对于大文件
                 if (isset($this->clientHeads['Range'])) {
                     $rangeLen = preg_replace('/bytes=(\d+)-/i', '${1}', $this->clientHeads['Range']);
@@ -641,7 +666,7 @@ class HttpInterface
                      * Content-Range的公式：bytes $rangeLen-($rangeLen+$len-1)/$filesize
                      */
                     $headers = ['Content-Type' => $connect_type, 'Content-Length' => $len, 'Data' => $lastTime, 'Connection' => 'keep-alive', 'Content-Range' => 'bytes ' . $rangeLen . '-' . ($maxLen - 1) . '/' . $filesize];
-                    $this->setHeader(206, $headers);
+                    $code = 206;
                 } else {
                     // 第一次读取，必须要返回200状态码
                     $data = $this->readTheFile($file, 0, $rangeSize);
@@ -651,17 +676,15 @@ class HttpInterface
                     if ($len < $filesize) {
                         $headers['Accept-Ranges'] = 'bytes';
                     }
-                    $this->setHeader(200, $headers);
+                    $code = 200;
                 }
                 /** 判断是否开启gzip **/
                 if ($this->gzip == 'on' && in_array($connect_type, $this->gzipTypes)) {
                     $headers['Content-Encoding'] = 'gzip'; //deflate';
                 }
-            } else {
-                $headers = ["Content-Type" => "application/octet-stream", "Content-Transfer-Encoding" => "Binary", "Content-disposition" => "attachment", "filename" => basename($file)];
-                $this->setHeader(200, $headers);
+                $this->setHeader($code, $headers);
+                $this->send($data);
             }
-            $this->send($data);
             $type = null;
             // 如果大于1000的文件，就重新搞
             if (count($this->files) > 1000) {
@@ -669,6 +692,16 @@ class HttpInterface
             }
             $this->outputStatus = true;
         }
+    }
+
+    // 循环打开文件
+    public function readForFile($path)
+    {
+        $handle = fopen($path, "r");
+        while (!feof($handle)) {
+            yield fread($handle, 65535);
+        }
+        fclose($handle);
     }
 
     // 打开文件
