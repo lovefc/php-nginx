@@ -427,34 +427,11 @@ class HttpInterface
 
 
     // 解析获取的文件头
-    public function _getHeader2($code, $header = [])
-    {
-        $response = '';
-        if (is_array($header) && count($header) > 0) {
-            foreach ($header as $k => $v) {
-                if ($k == 'Content-Type') {
-                    //;charset=UTF-8
-                    $response .= "{$k}:{$v}" . $this->separator;
-                } else {
-                    $response .= "{$k}:{$v}" . $this->separator;
-                }
-            }
-        }
-        $response .= "Content-Length:" . $this->bodyLen . $this->separator;
-        $response .= $this->separator;
-        return $this->protocolHeader . " " . $this->getHttpCodeValue($code) . $this->separator . $response;
-    }
-
-    // 解析获取的文件头
     public function _getHeader($code, $header = [])
     {
         $response = '';
-        if (!isset($header["Content-Length"])) {
-            $len = $this->bodyLen;
-        } else {
-            $len = $header["Content-Length"];
-            unset($header["Content-Length"]);
-        }
+        $len = $header["Content-Length"];
+        unset($header["Content-Length"]);
         if (is_array($header) && count($header) > 0) {
             foreach ($header as $k => $v) {
                 if ($k == 'Content-Type') {
@@ -491,13 +468,16 @@ class HttpInterface
     // 发送消息
     public function send($data)
     {
-        $len =  strlen($data); // 当前字符串大小
+		// 当前字符串大小
+        $len =  strlen($data);
+		// 如果没有指定Content-Length大小就默认为当前传递过来的字符串大小
+		if (!isset($this->headers['Content-Length'])) $this->headers['Content-Length'] = $len;
         // gzip压缩
         if (isset($this->headers['Content-Encoding'])  && $this->headers['Content-Encoding'] == 'gzip') {
             $data = \gzencode($data);
-            $len = strlen($data);
+            $this->headers['Content-Length'] = strlen($data);
         }
-        if (!isset($this->headers['Content-Length'])) $this->headers['Content-Length'] = $len;
+		// 状态码
         $this->headers['Status'] = $this->headerCode;
         $this->headers = array_merge($this->headers, $this->addHeaders);
         $response =  $this->_getHeader($this->headerCode, $this->headers);
