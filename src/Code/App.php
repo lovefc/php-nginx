@@ -139,9 +139,9 @@ class App
      */
     public static function work($server_name, $port, $confFile='')
     {
-        $process_title = "php.nginx-{$server_name}-{$port}";
+        $process_title = "phpnginx-{$server_name}-{$port}";
         if (!empty($confFile)) {
-            $process_title .= "-".md5($confFile);
+            $process_title = "phpnginx-".md5($confFile);
         }
         cli_set_process_title($process_title);// PHP 5.5.0 可用
         $cert = NginxConf::$Configs[$server_name]['ssl_certificate'][0] ?? null;
@@ -225,7 +225,7 @@ class App
      */
     public static function linuxStop($confFile='')
     {		
-        $name = 'php.nginx';
+        $name = 'phpnginx';
         if (!empty($confFile)) {
             $name = md5($confFile);
         }
