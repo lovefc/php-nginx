@@ -430,7 +430,7 @@ class HttpInterface
     public function _getHeader($code, $header = [])
     {
         $response = '';
-        $len = $header["Content-Length"];
+        $len = $header["Content-Length"] ?? '';
         unset($header["Content-Length"]);
         if (is_array($header) && count($header) > 0) {
             foreach ($header as $k => $v) {
@@ -652,11 +652,11 @@ class HttpInterface
                     $data = $this->readTheFile($file, 0, $rangeSize);
                     $len = strlen($data);
                     $headers = ['Content-Type' => $connect_type, 'Content-Length' => $filesize, 'Connection' => 'keep-alive', 'Data' => $lastTime];
-                    // 如果读取的文件小于总数，就不开启分片传输
+					$code = 200;
+                    // 如果读取的文件小于总数，就开启分片传输
                     if ($len < $filesize) {
-                        $headers['Accept-Ranges'] = 'bytes';
+                        $this->openRange($code,$headers,$connect_type);
                     }
-                    $code = 200;
                 }
                 /** 判断是否开启gzip **/
                 if ($this->gzip == 'on' && in_array($connect_type, $this->gzipTypes)) {
@@ -673,6 +673,17 @@ class HttpInterface
             $this->outputStatus = true;
         }
     }
+	
+	// 开启分片传输
+	public function openRange($code,$headers,$connect_type){
+		$headers['Accept-Ranges'] = 'bytes';
+         /** 判断是否开启gzip **/
+        if ($this->gzip == 'on' && in_array($connect_type, $this->gzipTypes)) {
+            $headers['Content-Encoding'] = 'gzip'; //deflate';
+        }		
+		$this->sendCode($code,$headers);
+		$this->outputStatus = true;
+	}	
 
     // 循环打开文件
     public function readForFile($path)
