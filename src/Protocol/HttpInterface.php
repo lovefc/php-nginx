@@ -256,7 +256,8 @@ class HttpInterface
         }
         $arr = explode("\r\n\r\n", $text);
         $header_text = $arr[0] ?? [];
-        $content = $arr[1] ?? '';
+		unset($arr[0]);
+		$content = implode("\r\n\r\n", $arr);
         if (strstr($header_text, "PHP message:")) {
             $tmp = explode("\n", $header_text);
             $tmp2 = preg_split("/(Status:|Content-Type:)+/", $tmp[0]);
