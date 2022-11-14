@@ -23,8 +23,6 @@ class HttpInterface
 
     public $bodyLen = 0;
 
-    public $rangeSize = 1000 * 1000 * 1;
-
     public $headers;
 
     public $headerCode = 200;
@@ -78,12 +76,6 @@ class HttpInterface
     private $fpmClient;
 
     private $firstRead = false; // 首次读取
-
-    private $downTypes = [
-        'application/zip',
-        'application/msword',
-        'application/octet-stream',
-    ];
 
     // 事件
     private $events = [
@@ -570,14 +562,6 @@ class HttpInterface
         return false;
     }
 
-    // 获取文件后缀
-    public function getExt($filename)
-    {
-        $arr = pathinfo($filename);
-        $ext = $arr['extension'];
-        return strtolower($ext);
-    }
-
     // 获取索引文件路径
     public function getDefaultIndex($query)
     {
@@ -595,7 +579,15 @@ class HttpInterface
         }
         return $this->documentRoot . $path;
     }
-
+	
+    // 获取文件后缀
+    public function getExt($filename)
+    {
+        $arr = pathinfo($filename);
+        $ext = $arr['extension'];
+        return strtolower($ext);
+    }
+	
     // 访问静态文件
     public function staticDir($file)
     {
@@ -606,110 +598,25 @@ class HttpInterface
             }
             $type = $this->types;
             $ext = $this->getExt($file);
-            $connect_type = $type[$ext] ?? null;
-            $lastTime = date('r');
-            $time = time();
-            $rangeSize = $this->rangeSize; // 这里是1m
+            $connectType = $type[$ext] ?? null;
             // 读取文件大小
             if (isset($this->files[$file])) {
-                $filesize = $this->files[$file];
+                $fileSize = $this->files[$file];
             } else {
-                $filesize = filesize($file);
-            }
-            if ($connect_type == null || in_array($connect_type, $this->downTypes)) {
-                $headers = ['Content-Length' => $filesize, 'Data' => $lastTime];
-                $headers["Content-Type"] = "application/octet-stream";
-                $headers["Content-Transfer-Encoding"] = "Binary";
-                $headers["Content-disposition"] = "attachment";
-                $headers["filename"] = basename($file);
-                $code = 200;
-                $this->setHeader($code, $headers);
-                // 常规的循环读取
-                foreach ($this->readForFile($file) as $k => $data) {
-                    if ($k == 0) {
-                        $response =  $this->_getHeader($code, $headers);
-                        $response = stripcslashes($response);
-                        $data = $response . $data;
-                    }
-                    $this->server->send($this->fd, $data);
-                }
-            } else {
-                // 分段传输，针对于大文件
-                if (isset($this->clientHeads['Range'])) {
-                    $rangeLen = preg_replace('/bytes=(\d+)-/i', '${1}', $this->clientHeads['Range']);
-                    $data = $this->readTheFile($file, $rangeLen, $rangeSize);
-                    $len = strlen($data);
-                    $maxLen = $rangeLen + $len; //这个就是一共传输的字节数
-                    /**
-                     * 设定文件头的时候一定要注意这里
-                     * Content-Length表示本次读取的大小
-                     * Content-Range的公式：bytes $rangeLen-($rangeLen+$len-1)/$filesize
-                     */
-                    $headers = ['Content-Type' => $connect_type, 'Content-Length' => $len, 'Data' => $lastTime, 'Connection' => 'keep-alive', 'Content-Range' => 'bytes ' . $rangeLen . '-' . ($maxLen - 1) . '/' . $filesize];
-                    $code = 206;
-                } else {
-                    // 第一次读取，必须要返回200状态码
-                    $data = $this->readTheFile($file, 0, $rangeSize);
-                    $len = strlen($data);
-                    $headers = ['Content-Type' => $connect_type, 'Content-Length' => $filesize, 'Connection' => 'keep-alive', 'Data' => $lastTime];
-					$code = 200;
-                    // 如果读取的文件小于总数，就开启分片传输
-                    if ($len < $filesize) {
-                        $this->openRange($code,$headers,$connect_type);
-                    }
-                }
-                /** 判断是否开启gzip **/
-                if ($this->gzip == 'on' && in_array($connect_type, $this->gzipTypes)) {
-                    $headers['Content-Encoding'] = 'gzip'; //deflate';
-                }
-                $this->setHeader($code, $headers);
-                $this->send($data);
-            }
-            $type = null;
+                $fileSize = filesize($file);
+            }			
+		    $handleDocument = new HandleDocument($this,$file,$fileSize,$connectType);
+		    if($handleDocument->staticDir()){
+				$this->outputStatus = true;	
+			}
+		    $handleDocument = '';
             // 如果大于1000的文件，就重新搞
             if (count($this->files) > 1000) {
                 $this->files = [];
-            }
-            $this->outputStatus = true;
-        }
+            }		
+		}
     }
 	
-	// 开启分片传输
-	public function openRange($code,$headers,$connect_type){
-		$headers['Accept-Ranges'] = 'bytes';
-         /** 判断是否开启gzip **/
-        if ($this->gzip == 'on' && in_array($connect_type, $this->gzipTypes)) {
-            $headers['Content-Encoding'] = 'gzip'; //deflate';
-        }		
-		$this->sendCode($code,$headers);
-		$this->outputStatus = true;
-	}	
-
-    // 循环打开文件
-    public function readForFile($path)
-    {
-        $handle = fopen($path, "r");
-        while (!feof($handle)) {
-            yield fread($handle, 65535);
-        }
-        fclose($handle);
-    }
-
-    // 打开文件
-    public function readTheFile($path, $start = 0, $length = null)
-    {
-        $size = filesize($path);
-        if ($start < 0) {
-            $start += $size;
-        }
-        if ($length === null) {
-            $length = $size - $start;
-        }
-        if ($length > $size) {
-            $length = $size;
-        }
-        return file_get_contents($path, false, null, $start, $length);
-    }
 
     // 事件绑定
     public function on($event, $callback)

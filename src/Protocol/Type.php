@@ -692,12 +692,10 @@ $types = [
       'zip' => 'application/zip',
       'zoo' => 'application/x-zoo',
       // 自增的
-      'htaccess' => 'application/octet-stream',
       'db' => 'application/octet-stream',
       'sql' => 'application/x-sql',
       'dll' => 'application/x-msdownload',
       'sh' => 'application/x-sh',
-      'so' => 'application/octet-stream',
 ];
 
 return $types;
