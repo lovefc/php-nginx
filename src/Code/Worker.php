@@ -240,7 +240,7 @@ class Worker
 		
         if (empty($buffer) && (feof($client) || !is_resource($client))) {
             $this->closeStock($client);
-			//return;
+			return;
         }
 		
         is_callable($this->onReceive) && call_user_func_array($this->onReceive, [$this->socket, $client, $buffer]);
@@ -257,14 +257,12 @@ class Worker
     {
         if (is_resource($client)) {
             if (@fwrite($client, $data) === false || @fflush($client) === false) {
-				$timeoutMs = 1000;
+				$timeoutMs = 5000;
 				stream_set_timeout($client, floor($timeoutMs / 1000), ($timeoutMs % 1000) * 1000);
                 $info = stream_get_meta_data($client);
                 if ($info['timed_out']) {
                     throw new \Exception('Write timed out');
                 }
-                fclose($client);
-                throw new \Exception('Failed to write request to socket');
             }
         }
     }
