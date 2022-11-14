@@ -23,7 +23,7 @@ class HandleDocument
 
     private $types = [];
 
-    private $rangeSize = 1000 * 1000 * 0.5;
+    private $rangeSize = 1000 * 1000 * 1;
 
     private $connectType = '';
 
@@ -104,14 +104,13 @@ class HandleDocument
         $code = 200;
 		$headers = array_merge($this->httpInterface->addHeaders,$headers);
         $this->httpInterface->setHeader($code, $headers);
+		ob_start();
         foreach ($this->readForFile($file) as $k => $data) {
-            if ($k == 0) {
-                $response =  $this->httpInterface->_getHeader($code, $headers);
-                $response = stripcslashes($response);
-                $data = $response . $data;
-            }
-            $this->httpInterface->server->send($this->httpInterface->fd, $data);
+			echo $data;
         }
+		$contents = ob_get_contents();
+        ob_end_clean();
+		$this->httpInterface->send($contents);
     }
 
     // 开启分片传输
