@@ -98,7 +98,7 @@ class HandleDocument
             $headers = ['Content-Type' => $connectType, 'Content-Length' => $filesize, 'Connection' => 'keep-alive', 'Data' => $lastTime];
         }
         /** 判断是否开启gzip **/
-        if ($this->httpInterface->gzip == 'on' && in_array($connect_type, $this->httpInterface->gzipTypes)) {
+        if ($this->httpInterface->gzip == 'on' && in_array($connectType, $this->httpInterface->gzipTypes)) {
             $headers['Content-Encoding'] = 'gzip';
         }
         $code = 200;
