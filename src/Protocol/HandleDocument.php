@@ -102,6 +102,7 @@ class HandleDocument
             $headers['Content-Encoding'] = 'gzip';
         }
         $code = 200;
+		$headers = array_merge($this->httpInterface->addHeaders,$headers);
         $this->httpInterface->setHeader($code, $headers);
         foreach ($this->readForFile($file) as $k => $data) {
             if ($k == 0) {
@@ -121,6 +122,7 @@ class HandleDocument
         if ($this->httpInterface->gzip == 'on' && in_array($this->connectType, $this->httpInterface->gzipTypes)) {
             $headers['Content-Encoding'] = 'gzip';
         }
+		$headers = array_merge($this->httpInterface->addHeaders,$headers);
         $this->httpInterface->sendCode($code, $headers);
         $this->httpInterface->outputStatus = true;
     }
