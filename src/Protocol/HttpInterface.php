@@ -118,6 +118,7 @@ class HttpInterface
     public function setEnv($server_name)
     {
         $this->documentRoot = NginxConf::$Configs[$server_name]['root'][0] ?? null;
+		$this->documentRoot = str_ireplace("\\","/",$this->documentRoot);
         $this->defaultIndex = NginxConf::$Configs[$server_name]['index'] ?? [];
         $this->displayCatalogue = NginxConf::$Configs[$server_name]['autoindex'][0] ?? 'off';
         $this->gzip = NginxConf::$Configs[$server_name]['gzip'][0] ?? 'off';
@@ -219,6 +220,7 @@ class HttpInterface
             'SERVER_PROTOCOL' => 'HTTP/1.1',
             'CONTENT_TYPE' => $_SERVER['Content-Type'] ?? '',
             'REQUEST_METHOD' => $_SERVER['REQUEST_METHOD'],
+			'DOCUMENT_ROOT' => $this->documentRoot,
             'SCRIPT_FILENAME' => $_SERVER['SCRIPT_FILENAME'],
             'REMOTE_ADDR' => $_SERVER['REMOTE_ADDR'],
             'REMOTE_PORT' => $_SERVER['REMOTE_PORT'],
@@ -373,7 +375,7 @@ class HttpInterface
         $max_len = 0;
         while (($filename = readdir($handler)) !== false) {
             if ($filename !== "." && $filename !== "..") {
-                $path = $dir . DIRECTORY_SEPARATOR . $filename;
+                $path = $dir . "/" . $filename;
                 if (is_file($path)) {
                     $files[$i]['filename'] = $filename;
                     $files[$i]['uptime'] = filemtime($path);
@@ -594,7 +596,7 @@ class HttpInterface
         // 这里为了加快速度,缓存一下文件大小
         if (isset($this->files[$file]) || is_file($file)) {
             if (empty($this->types)) {
-                $this->types = include(__DIR__ . DIRECTORY_SEPARATOR . 'Type.php');
+                $this->types = include(__DIR__ . "/" . 'Type.php');
             }
             $type = $this->types;
             $ext = $this->getExt($file);
