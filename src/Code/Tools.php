@@ -2,7 +2,7 @@
 /*
  * @Author       : lovefc
  * @Date         : 2022-09-03 02:11:36
- * @LastEditTime : 2022-11-11 02:34:34
+ * @LastEditTime : 2022-11-14 19:09:00
  */
 
 namespace FC\Code;
@@ -19,6 +19,7 @@ class Tools
             "fsockopen",
             "pfsockopen",
             "stream_socket_server",
+			"mb_convert_encoding",
         ];
         $status = 0;
         $disEnable = [];
@@ -58,7 +59,8 @@ class Tools
     // 生成空格
     public static function spaces($str, $max = 120)
     {
-        $str = iconv('utf-8', 'gb2312', $str);
+        // iconv('utf-8', 'gb2312', $str);
+        $str = mb_convert_encoding($str, "GBK", "UTF-8");
         $len = strlen($str);
         $text = '';
         for ($len; $len <= $max; $len++) {

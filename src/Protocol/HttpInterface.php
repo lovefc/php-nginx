@@ -171,7 +171,7 @@ class HttpInterface
         if ($this->handleData($data)) {
             $tmp = explode(":", $_SERVER['Host'])[0];
             $this->setEnv($tmp);
-            $query = IS_WIN === true ? iconv('UTF-8', 'GB2312', $_SERVER['QUERY']) : $_SERVER['QUERY'];
+            $query = IS_WIN === true ? mb_convert_encoding($_SERVER['QUERY'],"GBK","UTF-8") : $_SERVER['QUERY'];
             $file = $this->getDefaultIndex($query);
             $this->explodeQuery();
             !$this->outputStatus && $this->analysisLocation($_SERVER['PHP_SELF']);
@@ -377,7 +377,7 @@ class HttpInterface
                 if (is_file($path)) {
                     $files[$i]['filename'] = $filename;
                     $files[$i]['uptime'] = filemtime($path);
-                    $filename = iconv('utf-8', 'gb2312', $filename);
+                    $filename = mb_convert_encoding($filename,"GBK","UTF-8"); // iconv('utf-8', 'gb2312', $filename);
                     $len =  strlen($filename);
                     $files[$i]['filesize'] = Tools::transfByte(filesize($path));
                     if ($max_len < $len) {
