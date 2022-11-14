@@ -256,7 +256,7 @@ class Worker
     public function send($client, $data)
     {
         if (is_resource($client)) {
-            if (fwrite($client, $data) === false || fflush($client) === false) {
+            if (@fwrite($client, $data) === false || @fflush($client) === false) {
 				$timeoutMs = 1000;
 				stream_set_timeout($client, floor($timeoutMs / 1000), ($timeoutMs % 1000) * 1000);
                 $info = stream_get_meta_data($client);

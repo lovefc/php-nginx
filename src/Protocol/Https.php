@@ -31,7 +31,8 @@ class Https extends HttpInterface
         $type = STREAM_CRYPTO_METHOD_TLSv1_1_SERVER | STREAM_CRYPTO_METHOD_TLSv1_2_SERVER;
         $ret = stream_socket_enable_crypto($client, true, $type);
         restore_error_handler();
-        stream_set_blocking($client, false); // 非阻塞模式
+		// 在低网速的服务器，设置非阻塞可能会造成图片文件无法读取
+        //stream_set_blocking($client, false); // 非阻塞模式
         return $client;
     }
 

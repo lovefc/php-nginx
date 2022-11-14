@@ -2,7 +2,7 @@
 /*
  * @Author       : lovefc
  * @Date         : 2022-11-13 19:07:17
- * @LastEditTime : 2022-11-14 14:40:33
+ * @LastEditTime : 2022-11-14 18:08:18
  */
 
 namespace FC\Protocol;
@@ -84,18 +84,6 @@ class HandleDocument
         return true;
     }
 
-    // 开启分片传输
-    public function openRange($code, $headers)
-    {
-        $headers['Accept-Ranges'] = 'bytes';
-        /** 判断是否开启gzip **/
-        if ($this->httpInterface->gzip == 'on' && in_array($this->connectType, $this->httpInterface->gzipTypes)) {
-            $headers['Content-Encoding'] = 'gzip';
-        }
-        $this->httpInterface->sendCode($code, $headers);
-        $this->outputStatus = true;
-    }
-
     // 输出文件
     public function outputFile($file, $filesize, $connectType)
     {
@@ -112,10 +100,9 @@ class HandleDocument
         /** 判断是否开启gzip **/
         if ($this->httpInterface->gzip == 'on' && in_array($connect_type, $this->httpInterface->gzipTypes)) {
             $headers['Content-Encoding'] = 'gzip';
-        }		
+        }
         $code = 200;
         $this->httpInterface->setHeader($code, $headers);
-        // 常规的循环读取
         foreach ($this->readForFile($file) as $k => $data) {
             if ($k == 0) {
                 $response =  $this->httpInterface->_getHeader($code, $headers);
@@ -124,6 +111,18 @@ class HandleDocument
             }
             $this->httpInterface->server->send($this->httpInterface->fd, $data);
         }
+    }
+
+    // 开启分片传输
+    public function openRange($code, $headers)
+    {
+        $headers['Accept-Ranges'] = 'bytes';
+        /** 判断是否开启gzip **/
+        if ($this->httpInterface->gzip == 'on' && in_array($this->connectType, $this->httpInterface->gzipTypes)) {
+            $headers['Content-Encoding'] = 'gzip';
+        }
+        $this->httpInterface->sendCode($code, $headers);
+        $this->httpInterface->outputStatus = true;
     }
 
     // 分段传输
@@ -155,6 +154,7 @@ class HandleDocument
             // 如果读取的文件小于总数，就开启分片传输
             if ($len < $filesize) {
                 $this->openRange($code, $headers);
+                return;
             }
         }
         $this->httpInterface->setHeader($code, $headers);
@@ -166,7 +166,7 @@ class HandleDocument
     {
         $handle = fopen($path, "r");
         while (!feof($handle)) {
-            yield fread($handle, 65535);
+            yield fread($handle, $this->rangeSize);
         }
         fclose($handle);
     }
