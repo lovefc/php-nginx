@@ -12,6 +12,12 @@ class Tools
     // 检查环境
     public static function checkEnvironment()
     {
+		// 判断运行版本
+        if(version_compare(PHP_VERSION, '7.4.0', '<=')){
+            echo self::colorFont("php version should be greater than or equal to php7.4", '红') . PHP_EOL;
+            die();			
+		}
+		// 判断内置函数
         $funcs = [
             "shell_exec",
             "proc_open",
