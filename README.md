@@ -1,6 +1,6 @@
 ![php-nginx](logo.svg)
 
-用php开发的类似nginx的应用,可用于学习
+用php开发的类似nginx的web服务器,可用于学习
 
 中文介绍 | [English](https://github.com/lovefc/php-nginx/blob/master/doc/readme-en.md)
 
@@ -30,7 +30,7 @@ php index.php [-c filename]   [ start | restart | stop ] [ -v ]
 
 有趣乎:`https://nginx.fcphp.cn`
 
-这是一个由php-nginx搭建的一个网站
+这是一个由php-nginx搭建的网站
 
 
 ## 配置信息(目前已支持的语法)
