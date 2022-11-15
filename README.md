@@ -25,6 +25,14 @@ php index.php [-c filename]   [ start | restart | stop ] [ -v ]
 > 在linux环境下，可以使用 php index.php -c filename [ start | restart | stop ] 来进行对单一配置的操作
 > windows环境下，则不行，重启和停止都是全部重启，全部停止
 
+
+## 线上测试地址
+
+有趣乎:`https://nginx.fcphp.cn`
+
+这是一个由php-nginx搭建的一个网站
+
+
 ## 配置信息(目前已支持的语法)
 ```
 server 
