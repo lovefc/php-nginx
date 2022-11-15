@@ -21,9 +21,6 @@ define("PATH", dirname(__DIR__));
 // 定义时区
 !defined('TIMEZONE') ? date_default_timezone_set('PRC') : date_default_timezone_set(TIMEZONE);
 
-// 定义编码
-!defined('CHARSET') ? header("Content-type:text/html; charset=utf-8") : header('Content-type: text/html; charset=' . CHARSET);
-
 // 检查是否为win系统
 $is_win = PATH_SEPARATOR == ';' ? true : false;
 
