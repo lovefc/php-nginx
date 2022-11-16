@@ -2,7 +2,7 @@
 /*
  * @Author       : lovefc
  * @Date         : 2022-09-03 02:11:36
- * @LastEditTime : 2022-11-13 01:11:00
+ * @LastEditTime : 2022-11-16 17:11:36
  */
 
 namespace FC\Protocol;
@@ -118,7 +118,7 @@ class HttpInterface
     public function setEnv($server_name)
     {
         $this->documentRoot = NginxConf::$Configs[$server_name]['root'][0] ?? null;
-		$this->documentRoot = str_ireplace("\\","/",$this->documentRoot);
+        $this->documentRoot = str_ireplace("\\", "/", $this->documentRoot);
         $this->defaultIndex = NginxConf::$Configs[$server_name]['index'] ?? [];
         $this->displayCatalogue = NginxConf::$Configs[$server_name]['autoindex'][0] ?? 'off';
         $this->gzip = NginxConf::$Configs[$server_name]['gzip'][0] ?? 'off';
@@ -172,7 +172,7 @@ class HttpInterface
         if ($this->handleData($data)) {
             $tmp = explode(":", $_SERVER['Host'])[0];
             $this->setEnv($tmp);
-            $query = IS_WIN === true ? mb_convert_encoding($_SERVER['QUERY'],"GBK","UTF-8") : $_SERVER['QUERY'];
+            $query = IS_WIN === true ? mb_convert_encoding($_SERVER['QUERY'], "GBK", "UTF-8") : $_SERVER['QUERY'];
             $file = $this->getDefaultIndex($query);
             $this->explodeQuery();
             !$this->outputStatus && $this->analysisLocation($_SERVER['PHP_SELF']);
@@ -191,17 +191,21 @@ class HttpInterface
                 if ($k == $code) {
                     if (Tools::checkUrl($v)) {
                         $this->sendCode('302', ['Location' => $v]);
+                        $this->outputStatus = true;
+                        return;
                     } else {
-                        $this->staticDir($v);
+                        if (is_file($v)) {
+                            $this->staticDir($v);
+                            return;
+                        }
                     }
                 }
             }
-        } else {
-            $text = $this->getHttpCodeValue($code);
-            $data = '<html><head><title>' . $text . '</title></head><body><center><h1>' . $text . '</h1></center><hr><center>php-nginx/0.01</center></body></html>';
-            $this->setHeader($code);
-            $this->send($data);
         }
+        $text = $this->getHttpCodeValue($code);
+        $data = '<html><head><title>' . $text . '</title></head><body><center><h1>' . $text . '</h1></center><hr><center>php-nginx/0.01</center></body></html>';
+        $this->setHeader($code);
+        $this->send($data);
         $this->outputStatus = true;
     }
 
@@ -220,7 +224,7 @@ class HttpInterface
             'SERVER_PROTOCOL' => 'HTTP/1.1',
             'CONTENT_TYPE' => $_SERVER['Content-Type'] ?? '',
             'REQUEST_METHOD' => $_SERVER['REQUEST_METHOD'],
-			'DOCUMENT_ROOT' => $this->documentRoot,
+            'DOCUMENT_ROOT' => $this->documentRoot,
             'SCRIPT_FILENAME' => $_SERVER['SCRIPT_FILENAME'],
             'REMOTE_ADDR' => $_SERVER['REMOTE_ADDR'],
             'REMOTE_PORT' => $_SERVER['REMOTE_PORT'],
@@ -256,8 +260,8 @@ class HttpInterface
         }
         $arr = explode("\r\n\r\n", $text);
         $header_text = $arr[0] ?? [];
-		unset($arr[0]);
-		$content = implode("\r\n\r\n", $arr);
+        unset($arr[0]);
+        $content = implode("\r\n\r\n", $arr);
         if (strstr($header_text, "PHP message:")) {
             $tmp = explode("\n", $header_text);
             $tmp2 = preg_split("/(Status:|Content-Type:)+/", $tmp[0]);
@@ -380,7 +384,7 @@ class HttpInterface
                 if (is_file($path)) {
                     $files[$i]['filename'] = $filename;
                     $files[$i]['uptime'] = filemtime($path);
-                    $filename = mb_convert_encoding($filename,"GBK","UTF-8"); // iconv('utf-8', 'gb2312', $filename);
+                    $filename = mb_convert_encoding($filename, "GBK", "UTF-8"); // iconv('utf-8', 'gb2312', $filename);
                     $len =  strlen($filename);
                     $files[$i]['filesize'] = Tools::transfByte(filesize($path));
                     if ($max_len < $len) {
@@ -463,16 +467,16 @@ class HttpInterface
     // 发送消息
     public function send($data)
     {
-		// 当前字符串大小
+        // 当前字符串大小
         $len =  strlen($data);
-		// 如果没有指定Content-Length大小就默认为当前传递过来的字符串大小
-		if (!isset($this->headers['Content-Length'])) $this->headers['Content-Length'] = $len;
+        // 如果没有指定Content-Length大小就默认为当前传递过来的字符串大小
+        if (!isset($this->headers['Content-Length'])) $this->headers['Content-Length'] = $len;
         // gzip压缩
         if (isset($this->headers['Content-Encoding'])  && $this->headers['Content-Encoding'] == 'gzip') {
             $data = \gzencode($data);
             $this->headers['Content-Length'] = strlen($data);
         }
-		// 状态码
+        // 状态码
         $this->headers['Status'] = $this->headerCode;
         $this->headers = array_merge($this->headers, $this->addHeaders);
         $response =  $this->_getHeader($this->headerCode, $this->headers);
@@ -582,7 +586,7 @@ class HttpInterface
         }
         return $this->documentRoot . $path;
     }
-	
+
     // 获取文件后缀
     public function getExt($filename)
     {
@@ -590,7 +594,7 @@ class HttpInterface
         $ext = $arr['extension'];
         return strtolower($ext);
     }
-	
+
     // 访问静态文件
     public function staticDir($file)
     {
@@ -607,19 +611,19 @@ class HttpInterface
                 $fileSize = $this->files[$file];
             } else {
                 $fileSize = filesize($file);
-            }			
-		    $handleDocument = new HandleDocument($this,$file,$fileSize,$connectType);
-		    if($handleDocument->staticDir()){
-				$this->outputStatus = true;	
-			}
-		    $handleDocument = '';
+            }
+            $handleDocument = new HandleDocument($this, $file, $fileSize, $connectType);
+            if ($handleDocument->staticDir()) {
+                $this->outputStatus = true;
+            }
+            $handleDocument = '';
             // 如果大于1000的文件，就重新搞
             if (count($this->files) > 1000) {
                 $this->files = [];
-            }		
-		}
+            }
+        }
     }
-	
+
 
     // 事件绑定
     public function on($event, $callback)
