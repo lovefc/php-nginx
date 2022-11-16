@@ -2,7 +2,7 @@
 /*
  * @Author       : lovefc
  * @Date         : 2022-09-03 02:11:36
- * @LastEditTime : 2022-11-10 12:36:01
+ * @LastEditTime : 2022-11-16 17:27:52
  */
 
 namespace FC\Code;
@@ -23,11 +23,11 @@ class App
         } elseif (strtoupper(substr(PHP_OS, 0, 3)) === 'WIN') {
             $paths = explode(PATH_SEPARATOR, getenv('PATH'));
             foreach ($paths as $path) {
-                if (substr($path, strlen($path)-1) == DIRECTORY_SEPARATOR) {
-                    $path = substr($path, 0, strlen($path)-1);
+                if (substr($path, strlen($path) - 1) == DIRECTORY_SEPARATOR) {
+                    $path = substr($path, 0, strlen($path) - 1);
                 }
                 if (substr($path, strlen($path) - strlen('php')) == 'php') {
-                    $response = $path.DIRECTORY_SEPARATOR . 'php.exe';
+                    $response = $path . DIRECTORY_SEPARATOR . 'php.exe';
                     if (is_file($response)) {
                         return $response;
                     }
@@ -40,14 +40,14 @@ class App
         } else {
             $paths = explode(PATH_SEPARATOR, getenv('PATH'));
             foreach ($paths as $path) {
-                if (substr($path, strlen($path)-1) == DIRECTORY_SEPARATOR) {
-                    $path = substr($path, strlen($path)-1);
+                if (substr($path, strlen($path) - 1) == DIRECTORY_SEPARATOR) {
+                    $path = substr($path, strlen($path) - 1);
                 }
                 if (substr($path, strlen($path) - strlen('php')) == 'php') {
                     if (is_file($path)) {
                         return $path;
                     }
-                    $response = $path.DIRECTORY_SEPARATOR . 'php';
+                    $response = $path . DIRECTORY_SEPARATOR . 'php';
                     if (is_file($response)) {
                         return $response;
                     }
@@ -104,26 +104,26 @@ class App
      * @param string $confFile
      * @return void
      */
-    public static function run($confFile= '')
+    public static function run($confFile = '')
     {
         if (!is_file($confFile) || empty($confFile)) {
-            NginxConf::readAllConf(PATH.'/conf/vhosts');
+            NginxConf::readAllConf(PATH . '/conf/vhosts');
         } else {
             NginxConf::readConf($confFile);
         }
         $php_path = self::getPhpPath();
         self::$phpPath = $php_path;
-        $path = dirname(__DIR__);		
-		self::startWinFpm($path);
-        $app_file = $path.'/run.php';
-        foreach (NginxConf::$Configs as $k=>$v) {
+        $path = dirname(__DIR__);
+        self::startWinFpm($path);
+        $app_file = $path . '/run.php';
+        foreach (NginxConf::$Configs as $k => $v) {
             if (!isset($v['listen'])) {
                 break;
             }
             $server_name = $k;
             foreach ($v['listen'] as $port) {
-                $cmd = $php_path.' '.$app_file.' -h '.$server_name.' -p '.$port.' -c '.$confFile;
-                $cmd2 = 'Start-Process '.$php_path.' -ArgumentList "'.$app_file.' -h '.$server_name.' -p '.$port.' -c '.$confFile;
+                $cmd = $php_path . ' ' . $app_file . ' -h ' . $server_name . ' -p ' . $port . ' -c ' . $confFile;
+                $cmd2 = 'Start-Process ' . $php_path . ' -ArgumentList "' . $app_file . ' -h ' . $server_name . ' -p ' . $port . ' -c ' . $confFile;
                 self::execCmd($cmd);
             }
         }
@@ -137,16 +137,16 @@ class App
      * @param string $confFile
      * @return void
      */
-    public static function work($server_name, $port, $confFile='')
+    public static function work($server_name, $port, $confFile = '')
     {
         $process_title = "phpnginx-{$server_name}-{$port}";
         if (!empty($confFile)) {
-            $process_title = "phpnginx-".md5($confFile);
+            $process_title = "phpnginx-" . md5($confFile);
         }
-        cli_set_process_title($process_title);// PHP 5.5.0 可用
+        cli_set_process_title($process_title); // PHP 5.5.0 可用
         $cert = NginxConf::$Configs[$server_name]['ssl_certificate'][0] ?? null;
         $key  = NginxConf::$Configs[$server_name]['ssl_certificate_key'][0] ?? null;
-        if (!empty($cert) && !empty($key) && $port!='80') {
+        if (!empty($cert) && !empty($key) && $port != '80') {
             $context_option = [
                 'ssl' => [
                     'local_cert'  => $cert, // 也可以是crt文件
@@ -158,8 +158,8 @@ class App
         } else {
             $obj = new \FC\Protocol\Http("0.0.0.0:{$port}", []);
         }
-        register_shutdown_function([$obj,"fatalHandler"]);
-        set_error_handler([$obj,"errorHandler"]);
+        register_shutdown_function([$obj, "fatalHandler"]);
+        set_error_handler([$obj, "errorHandler"]);
         //set_exception_handler([$obj,"errorException"]);
         /*
         $obj->on('connect', function ($fd) {
@@ -198,7 +198,7 @@ class App
         $port = isset($arg['p']) ? $arg['p'] : '80';
         $confFile = isset($arg['c']) ? $arg['c'] : '';
         if (!is_file($confFile) || empty($confFile)) {
-            NginxConf::readAllConf(PATH.'/conf/vhosts');
+            NginxConf::readAllConf(PATH . '/conf/vhosts');
         } else {
             NginxConf::readConf($confFile);
         }
@@ -211,7 +211,7 @@ class App
      * @param string $confFile
      * @return void
      */
-    public static function reStart($confFile='')
+    public static function reStart($confFile = '')
     {
         self::stop($confFile);
         self::run($confFile);
@@ -223,8 +223,8 @@ class App
      * @param string $confFile
      * @return string
      */
-    public static function linuxStop($confFile='')
-    {		
+    public static function linuxStop($confFile = '')
+    {
         $name = 'phpnginx';
         if (!empty($confFile)) {
             $name = md5($confFile);
@@ -252,26 +252,27 @@ class App
     {
         $win_cmd = 'taskkill /T /F /im php.exe 2>NUL 1>NUL';
         self::execCmd($win_cmd);
-	    $win_cmd2 = 'taskkill /T /F /im php-cgi.exe 2>NUL 1>NUL';
-        self::execCmd($win_cmd2);	
-		$win_cmd3 = 'taskkill /T /F /im php-cgi-spawner.exe 2>NUL 1>NUL';
-        self::execCmd($win_cmd3);		
+        $win_cmd2 = 'taskkill /T /F /im php-cgi.exe 2>NUL 1>NUL';
+        self::execCmd($win_cmd2);
+        $win_cmd3 = 'taskkill /T /F /im php-cgi-spawner.exe 2>NUL 1>NUL';
+        self::execCmd($win_cmd3);
         return 'PHP-NGINX Stoping....';
     }
-	
-	// 启动win的fpm
-	public static function startWinFpm($path){
-		if (IS_WIN == true) {	
-			$spawner = $path.DIRECTORY_SEPARATOR.'php-cgi-spawner.exe';
-			$php_ini = self::getPhpIni();
-			$cgiPath = dirname(self::$phpPath).DIRECTORY_SEPARATOR.'php-cgi.exe';
-			if(!is_file($cgiPath)){
-				throw new \Exception('php-cgi.exe does not exist!');
-			}
-		    $cmd =$spawner.' "'.$cgiPath.' -c '.$php_ini.'" 9000 4+16';
-			self::execCmd($cmd);
-		}
-	}	
+
+    // 启动win的fpm
+    public static function startWinFpm($path)
+    {
+        if (IS_WIN == true) {
+            $spawner = $path . DIRECTORY_SEPARATOR . 'php-cgi-spawner.exe';
+            $php_ini = self::getPhpIni();
+            $cgiPath = dirname(self::$phpPath) . DIRECTORY_SEPARATOR . 'php-cgi.exe';
+            if (!is_file($cgiPath)) {
+                throw new \Exception('php-cgi.exe does not exist!');
+            }
+            $cmd = $spawner . ' "' . $cgiPath . ' -c ' . $php_ini . '" 9000 4+16';
+            self::execCmd($cmd);
+        }
+    }
 
     /**
      * 停止运行
@@ -279,7 +280,7 @@ class App
      * @param string $confFile
      * @return void
      */
-    public static function stop($confFile='')
+    public static function stop($confFile = '')
     {
         if (IS_WIN == false) {
             return self::linuxStop($confFile);
