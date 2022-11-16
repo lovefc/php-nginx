@@ -5,9 +5,8 @@ namespace FC\Code;
 /*
  * 常用http协议状态
  * @Author: lovefc
- * @Date: 2021-12-02 10:05:57
  * @Date         : 2021-12-02 10:05:57
- * @LastEditTime : 2022-10-24 22:45:58
+ * @LastEditTime : 2022-11-16 16:45:59
  */
 
 class HttpCode

@@ -2,7 +2,7 @@
 /*
  * @Author       : lovefc
  * @Date         : 2022-11-13 19:07:17
- * @LastEditTime : 2022-11-14 18:08:18
+ * @LastEditTime : 2022-11-16 16:50:09
  */
 
 namespace FC\Protocol;
@@ -18,10 +18,6 @@ class HandleDocument
     private $httpInterface;
 
     private $filename = '';
-
-    private $files = [];
-
-    private $types = [];
 
     private $rangeSize = 1000 * 1000 * 1;
 

@@ -2,7 +2,7 @@
 /*
  * @Author       : lovefc
  * @Date         : 2022-09-03 02:11:36
- * @LastEditTime : 2022-11-10 12:35:56
+ * @LastEditTime : 2022-11-16 16:46:22
  */
 
 namespace FC\Code;
@@ -51,11 +51,11 @@ class Worker
     ];
 
     private $_transports = [
-        'http'=>'tcp',
-        'https'=>'ssl',
-        'http2'=>'ssl',
-        'ws'=>'tcp',
-        'wss'=>'ssl',
+        'http' => 'tcp',
+        'https' => 'ssl',
+        'http2' => 'ssl',
+        'ws' => 'tcp',
+        'wss' => 'ssl',
     ];
 
     /**
@@ -64,7 +64,7 @@ class Worker
      * @param [type] $local_socket
      * @param array $context_option
      */
-    public function __construct($local_socket, $context_option=[])
+    public function __construct($local_socket, $context_option = [])
     {
         $this->stockAddres($local_socket);
         $context = [];
@@ -73,17 +73,18 @@ class Worker
         stream_context_set_option($context, 'socket', 'so_reuseport', 1);
         // 对于 UDP 套接字，您必须使用STREAM_SERVER_BIND作为flags参数
         $flags = $this->transport === 'udp' ? STREAM_SERVER_BIND : STREAM_SERVER_BIND | STREAM_SERVER_LISTEN;
-        $local_text = $this->protocol.'://'.$this->host.':'.$this->port;
+        $local_text = $this->protocol . '://' . $this->host . ':' . $this->port;
         //$flags一个位掩码字段，可以设置为套接字创建标志的任意组合。对于 UDP 套接字，您必须STREAM_SERVER_BIND用作flags参数。
         //$context 8.0 可以为空,在其它版本下，如果不需要设置，则必须设置为一个空数组
         $errno = 0;
         $errmsg = '';
-		set_error_handler(function () {});
+        set_error_handler(function () {
+        });
         $this->socket = stream_socket_server($local_text, $errno, $errmsg, $flags, $context);
-		restore_error_handler();
+        restore_error_handler();
         if (!is_resource($this->socket)) {
-			echo PHP_EOL."{$local_socket} Creation failed.";
-			return;
+            echo PHP_EOL . "{$local_socket} Creation failed.";
+            return;
         }
         // ssl 先不进行加密
         if ($this->transport === 'ssl') {
@@ -118,7 +119,7 @@ class Worker
      */
     public function stockAddres($local_socket)
     {
-        if (substr_count($local_socket, ':')==2) {
+        if (substr_count($local_socket, ':') == 2) {
             list($transport, $host, $port) = explode(":", $local_socket);
         } else {
             $port = null;
@@ -146,7 +147,7 @@ class Worker
     public function getPort($transport)
     {
         $port = 54321;
-        switch($transport) {
+        switch ($transport) {
             case "ssl":
                 $port = 443;
                 break;
@@ -180,11 +181,11 @@ class Worker
         $read = $this->socketList[$this->protocol];
         $write = $this->_writeFds;
         $except = $this->_exceptFds;
-		if($read || $write || $except){
+        if ($read || $write || $except) {
             stream_select($read, $write, $except, 0, $this->selectTimeout);
-		}else{
-           $this->selectTimeout >= 1 && usleep($this->selectTimeout);
-		}
+        } else {
+            $this->selectTimeout >= 1 && usleep($this->selectTimeout);
+        }
         foreach ($read as $socket) {
             if ($socket === $this->socket) {
                 $this->createSocket();
@@ -237,12 +238,12 @@ class Worker
 
         $buffer = fread($client, 65535);
         // 关闭链接
-		
+
         if (empty($buffer) && (feof($client) || !is_resource($client))) {
             $this->closeStock($client);
-			return;
+            return;
         }
-		
+
         is_callable($this->onReceive) && call_user_func_array($this->onReceive, [$this->socket, $client, $buffer]);
     }
 
@@ -257,7 +258,7 @@ class Worker
     {
         if (is_resource($client)) {
             if (@fwrite($client, $data) === false || fflush($client) === false) {
-			    $this->closeStock();
+                $this->closeStock();
             }
         }
     }

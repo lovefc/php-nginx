@@ -2,7 +2,7 @@
 /*
  * @Author       : lovefc
  * @Date         : 2022-10-21 16:36:41
- * @LastEditTime : 2022-11-10 12:31:09
+ * @LastEditTime : 2022-11-16 16:46:11
  */
 
 namespace FC\Code;
@@ -17,22 +17,22 @@ class NginxConf
      * @var array
      */
     public static $parameters = [
-      "autoindex",
-      "autoindex_exact_size",
-      "autoindex_localtime",
-      "add_header",
-      "listen",
-      "server_name",
-      "root",
-      "index",
-      "error_page",
-      "ssl_certificate",
-      "ssl_certificate_key",
-      "access_log",
-      "error_log",
-      "gzip",
-      "gzip_types",
-      "gzip_comp_level",
+        "autoindex",
+        "autoindex_exact_size",
+        "autoindex_localtime",
+        "add_header",
+        "listen",
+        "server_name",
+        "root",
+        "index",
+        "error_page",
+        "ssl_certificate",
+        "ssl_certificate_key",
+        "access_log",
+        "error_log",
+        "gzip",
+        "gzip_types",
+        "gzip_comp_level",
     ];
 
     /**
@@ -55,17 +55,17 @@ class NginxConf
      * @var array
      */
     public static $parameRules = [
-        '~*',//为不区分大小写匹配(可用正则表达式)
+        '~*', //为不区分大小写匹配(可用正则表达式)
 
-        '^~',//开头表示uri以某个常规字符串开头
+        '^~', //开头表示uri以某个常规字符串开头
 
-        '!~',//为区分大小写不匹配
+        '!~', //为区分大小写不匹配
 
-        '~',//为区分大小写匹配(可用正则表达式)
+        '~', //为区分大小写匹配(可用正则表达式)
 
-        '!~*',//为不区分大小写不匹配
+        '!~*', //为不区分大小写不匹配
 
-        '/',//通用匹配, 如果没有其它匹配,任何请求都会匹配到。
+        '/', //通用匹配, 如果没有其它匹配,任何请求都会匹配到。
 
         '=', // 表示精确匹配
     ];
@@ -121,12 +121,12 @@ class NginxConf
             $text = trim($text);
             $text2 = substr($text, 0, 1);
             foreach (self::$parameters  as $v2) {
-                if ($text2!='#' && preg_match("/^{$v2}\s+/is", $text)) {
+                if ($text2 != '#' && preg_match("/^{$v2}\s+/is", $text)) {
                     $text = trim(substr($text, strlen($v2)));
                     if (in_array($v2, self::$dirs)) {
                         $text = str_replace('$path', PATH, $text);
                     }
-                    if ($v2=='add_header' || $v2 == 'error_page') {
+                    if ($v2 == 'add_header' || $v2 == 'error_page') {
                         $_arrs = explode(" ", $text);
                         $confs[$v2][$_arrs[0]] = trim($_arrs[1]);
                     } else {
@@ -138,9 +138,6 @@ class NginxConf
         }
     }
 
-/*
-
-*/
     /**
      * 匹配location字符串
      *
@@ -153,7 +150,7 @@ class NginxConf
         $matches2_status = $matches2[1][0] ?? '';
         $locations = [];
         if ($matches2_status) {
-            foreach ($matches2[1] as $k=>$v) {
+            foreach ($matches2[1] as $k => $v) {
                 $preg = trim(str_replace(self::$parameRules, "", $v));
                 $locations[$preg] = trim($matches2[2][$k]);
             }
@@ -193,12 +190,12 @@ class NginxConf
      * @param string $path 文件地址
      * @return void
      */
-    public static function readConf($path='')
+    public static function readConf($path = '')
     {
         $conf = self::getConf($path);
         foreach ($conf['server_name'] as $v) {
             if (isset(self::$Configs[$v])) {
-                die(Tools::colorFont("{$v}-The domain name is bound, and it is bound repeatedly, Please check the configuration!", "红").PHP_EOL);
+                die(Tools::colorFont("{$v}-The domain name is bound, and it is bound repeatedly, Please check the configuration!", "红") . PHP_EOL);
             }
             self::$Configs[$v] = $conf;
         }
@@ -209,7 +206,7 @@ class NginxConf
      *
      * @param string $path 文件地址
      */
-    public static function readAllConf($path='', $extensions=['conf'])
+    public static function readAllConf($path = '', $extensions = ['conf'])
     {
         if (!is_dir($path)) {
             return false;
