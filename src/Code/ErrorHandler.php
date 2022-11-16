@@ -27,7 +27,7 @@ trait ErrorHandler
     // 获取所有的error
     public function errorHandler($errno, $errstr, $errfile, $errline)
     {
-        $log = date("Y/m/d H:i:s")." :".$errstr.PHP_EOL;
+        $log = date("Y/m/d H:i:s")." :".$errstr.$errfile.$errline.PHP_EOL;
         if (method_exists($this, 'errorLog')) {
             $this->errorLog($log);
         }
