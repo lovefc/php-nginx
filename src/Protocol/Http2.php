@@ -7,6 +7,11 @@
 
 namespace FC\Protocol;
 use FC\Code\Worker;
+
+/**
+ * http2规范-https://www.rfc-editor.org/rfc/rfc7540#section-8.1.2.1
+ */
+
 class Http2 extends HttpInterface
 {
     public function __construct($text, $context_option=[])
@@ -29,11 +34,15 @@ class Http2 extends HttpInterface
         $this->separator = '\r\n';
         $this->headers = [
            'Content-Type'=>'text/html;charset=UTF-8',
-           'Connection'=>'keep-alive',
-           //'Content-Encoding'=>'gzip',
-           //'Vary'=>'Accept-Encoding'
+           'Connection'=>'keep-alive'
         ];
     }	
+	
+	// 交换http2协议
+    public function http2(){
+		$upgrade = "HTTP/1.1 101 Switching Protocol\r\nUpgrade: h2c\r\nConnection: Upgrade\r\n\r\n";
+		$this->server->send($this->fd, $upgrade);
+	}	
 
     // https解密
     public function https($client)
