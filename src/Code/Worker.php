@@ -258,7 +258,7 @@ class Worker
     {
         if (is_resource($client)) {
             if (@fwrite($client, $data) === false || fflush($client) === false) {
-                $this->closeStock();
+                $this->closeStock($client);
             }
         }
     }
