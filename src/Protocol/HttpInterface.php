@@ -532,7 +532,10 @@ class HttpInterface
             unset($buffer[0]);
             $this->clientBody = implode("\r\n\r\n", $buffer);
             $header = explode("\r\n", $data2);
-            list($method, $query, $protocolHeader) = explode(" ", $header[0]);
+            $arr = explode(" ", $header[0]);
+			$method = $arr[0] ?? '';
+			$query = $arr[1] ?? '';
+			$protocolHeader = $arr[2] ?? ''; 
             unset($header[0]);
             $head = [];
             // 这里，修复了时间戳的问题,不可只用:号来分割

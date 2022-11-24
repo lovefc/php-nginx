@@ -73,7 +73,7 @@ class Worker
         stream_context_set_option($context, 'socket', 'so_reuseport', 1);
         // 对于 UDP 套接字，您必须使用STREAM_SERVER_BIND作为flags参数
         $flags = $this->transport === 'udp' ? STREAM_SERVER_BIND : STREAM_SERVER_BIND | STREAM_SERVER_LISTEN;
-        $local_text = $this->protocol . '://' . $this->host . ':' . $this->port;
+        $local_text = $this->_protocols[$this->_transports[$this->protocol]] . '://' . $this->host . ':' . $this->port;
         //$flags一个位掩码字段，可以设置为套接字创建标志的任意组合。对于 UDP 套接字，您必须STREAM_SERVER_BIND用作flags参数。
         //$context 8.0 可以为空,在其它版本下，如果不需要设置，则必须设置为一个空数组
         $errno = 0;
@@ -129,11 +129,11 @@ class Worker
         // 常见web协议
         if (array_key_exists($transport, $this->_transports)) {
             $this->transport = $this->_transports[$transport];
-            $this->protocol = $this->_protocols[$this->transport] ?? $transport;
+            $this->protocol = $transport;
         } else {
             // 其它协议
             $this->transport = $transport;
-            $this->protocol = $this->_protocols[$transport] ?? $transport;
+            $this->protocol = $transport;
         }
         $this->port = $port ?? $this->getPort($this->transport);
     }
@@ -220,7 +220,7 @@ class Worker
     private function closeStock($client)
     {
         unset($this->socketList[$this->protocol][(int)$client]);
-        $close = fclose($client);
+        $close = @fclose($client);
         !empty($close) && is_callable($this->onClose) && call_user_func_array($this->onClose, [$client]);
     }
 
@@ -257,9 +257,7 @@ class Worker
     public function send($client, $data)
     {
         if (is_resource($client)) {
-            if (@fwrite($client, $data) === false || fflush($client) === false) {
-                $this->closeStock($client);
-            }
+            @fwrite($client, $data);
         }
     }
 
