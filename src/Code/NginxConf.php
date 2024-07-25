@@ -33,6 +33,7 @@ class NginxConf
         "gzip",
         "gzip_types",
         "gzip_comp_level",
+        "rewrite",
     ];
 
     /**
@@ -46,7 +47,7 @@ class NginxConf
         'ssl_certificate',
         'ssl_certificate_key',
         'access_log',
-        'error_log'
+        'error_log',
     ];
 
     /**
@@ -120,13 +121,16 @@ class NginxConf
         foreach ($arr as $text) {
             $text = trim($text);
             $text2 = substr($text, 0, 1);
-            foreach (self::$parameters  as $v2) {
+            foreach (self::$parameters as $k2 => $v2) {
                 if ($text2 != '#' && preg_match("/^{$v2}\s+/is", $text)) {
                     $text = trim(substr($text, strlen($v2)));
                     if (in_array($v2, self::$dirs)) {
                         $text = str_replace('$path', PATH, $text);
                     }
-                    if ($v2 == 'add_header' || $v2 == 'error_page') {
+                    if ($v2 == 'add_header') {
+                        $_arrs = explode(" ", $text);
+                        $confs[$v2][] = $_arrs[0] . ":" . trim($_arrs[1]);
+                    } else if ($v2 == 'error_page') {
                         $_arrs = explode(" ", $text);
                         $confs[$v2][$_arrs[0]] = trim($_arrs[1]);
                     } else {

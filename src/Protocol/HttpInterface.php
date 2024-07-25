@@ -7,7 +7,11 @@
 
 namespace FC\Protocol;
 
-use FC\Code\{HttpCode, NginxConf, Tools, ErrorHandler, Client as fpmClient};
+use FC\Code\Client as fpmClient;
+use FC\Code\ErrorHandler;
+use FC\Code\HttpCode;
+use FC\Code\NginxConf;
+use FC\Code\Tools;
 
 class HttpInterface
 {
@@ -65,6 +69,8 @@ class HttpInterface
 
     public $locations;
 
+    public $rewrite;
+
     public $accessLogFile = '';
 
     public $errorLogFile = '';
@@ -75,13 +81,13 @@ class HttpInterface
 
     private $fpmClient;
 
-    private $firstRead = false; // 首次读取
+    private $firstRead = 0; // 首次读取
 
     // 事件
     private $events = [
         'connect' => 'onConnect',
         'message' => 'onMessage',
-        'close' => 'onClose'
+        'close' => 'onClose',
     ];
 
     public function socketAccept($server)
@@ -127,28 +133,58 @@ class HttpInterface
         $this->addHeaders = NginxConf::$Configs[$server_name]['add_header'] ?? [];
         $this->errorPage = NginxConf::$Configs[$server_name]['error_page'] ?? '';
         $this->locations = NginxConf::$Configs[$server_name]['location'] ?? '';
+        $this->rewrite = NginxConf::$Configs[$server_name]['rewrite'] ?? '';
         $this->accessLogFile = NginxConf::$Configs[$server_name]['access_log'][0] ?? '';
         $this->errorLogFile = NginxConf::$Configs[$server_name]['error_log'][0] ?? '';
-        $_SERVER['DOCUMENT_ROOT'] = $_SERVER['PATH_TRANSLATED'] =  $this->documentRoot;
+        $_SERVER['DOCUMENT_ROOT'] = $this->documentRoot;
         $_SERVER['SERVER_SOFTWARE'] = 'php-nginx/0.01';
         $_SERVER['REQUEST_SCHEME'] = $this->requestScheme;
+        $_SERVER['SERVER_PROTOCOL'] = $this->protocolHeader;
+        if ($this->requestScheme == 'https') {
+            $_SERVER['HTTPS'] = 'on';
+            $_SERVER['SERVER_PROTOCOL'] = 'HTTP/2.0';
+        }
         $_SERVER['HTTP_HOST'] = $server_name;
         $_SERVER['SERVER_NAME'] = $server_name;
-        $_SERVER['SERVER_PROTOCOL'] = $this->protocolHeader;
         $_SERVER['GATEWAY_INTERFACE'] = 'CGI/1.1';
         $address = explode(":", $this->remoteAddress);
         $_SERVER['REMOTE_ADDR'] = $address[0] ?? '';
         $_SERVER['REMOTE_PORT'] = $address[1] ?? '';
+        //$_SERVER['PATH_INFO'] =  $_SERVER['ORIG_PATH_INFO'] = '';
         $this->explodeQuery();
+
     }
 
     // 解析query
-    public function explodeQuery()
+    public function explodeQuery($query = null)
     {
-        $tmp = explode("?", $_SERVER['QUERY']);
-        $_SERVER['SCRIPT_NAME'] = $_SERVER['DOCUMENT_URI'] =  $_SERVER['PHP_SELF'] = $tmp[0] ?? '';
-        $_SERVER['QUERY_STRING'] = $tmp[1] ?? '';
-        $_SERVER['SCRIPT_FILENAME'] = $this->documentRoot . $_SERVER['PHP_SELF'];
+        $query = $query ?? $_SERVER['QUERY'];
+        $tmp = explode("?", $query);
+        $url = isset($tmp[0]) ? trim($tmp[0]) : '';
+        $_SERVER['DOCUMENT_URI'] = $_SERVER['PHP_SELF'] = $url;
+        $_SERVER['QUERY_STRING'] = isset($tmp[1]) ? trim($tmp[1]) : '';
+        $file = $this->documentRoot . $url;
+        // 判断是文件
+        if (is_file($file)) {
+            $_SERVER['SCRIPT_FILENAME'] = $this->documentRoot . $url;
+            $_SERVER['PATH_TRANSLATED'] = $this->documentRoot . $url;
+            $_SERVER['SCRIPT_NAME'] = $url;
+            return false;
+        }
+        $pattern = '/(.*\.php)(.*)/i';
+        $match = preg_match($pattern, $url, $matches);
+        if (isset($matches[1])) {
+            $_SERVER['SCRIPT_NAME'] = $matches[1];
+        } else {
+            $_SERVER['SCRIPT_NAME'] = $_SERVER['PHP_SELF'];
+        }
+        if (isset($matches[2])) {
+            $_SERVER['PATH_INFO'] = $_SERVER['ORIG_PATH_INFO'] = $matches[2];
+        }
+
+        $_SERVER['SCRIPT_FILENAME'] = $this->documentRoot . $_SERVER['SCRIPT_NAME'];
+        $_SERVER['PATH_TRANSLATED'] = $this->documentRoot . $_SERVER['REQUEST_URI'];
+        return true;
     }
 
     // 连接
@@ -161,6 +197,25 @@ class HttpInterface
         return $client;
     }
 
+    // 伪静态规则解析
+    public function _rewrite()
+    {
+        if ($this->rewrite) {
+            $value = $this->rewrite[0] ?? '';
+            $value2 = $this->rewrite[1] ?? '';
+            $value = str_replace('/', '\\/', $value);
+            $url = $_SERVER['DOCUMENT_URI'] . '?' . $_SERVER['QUERY_STRING'];
+            $pattern = '/(.*\.php)(.*)/i';
+            $match = preg_match($pattern, $url, $m);
+            if (preg_match("/{$value}/i", $url, $matches) && !isset($m[0])) {
+                $url = trim($url, "/");
+                // 伪静态模式下：/index.php/archives/1
+                $result = preg_replace('/\$args/i', $url, $value2);
+                $this->explodeQuery($result);
+            }
+        }
+    }
+
     // 处理
     public function _onReceive($server, $fd, $data)
     {
@@ -169,18 +224,20 @@ class HttpInterface
         $this->outputStatus = false;
         // 删除文件判断缓存
         clearstatcache();
-        if ($this->handleData($data)) {
-            $tmp = explode(":", $_SERVER['Host'])[0];
-            $this->setEnv($tmp);
-            $query = IS_WIN === true ? mb_convert_encoding($_SERVER['QUERY'], "GBK", "UTF-8") : $_SERVER['QUERY'];
-            $file = $this->getDefaultIndex($query);
-            $this->explodeQuery();
-            !$this->outputStatus && $this->analysisLocation($_SERVER['PHP_SELF']);
-            !$this->outputStatus && $this->staticDir($file);
-            !$this->outputStatus && $this->displayCatalogue == 'on' && $this->autoIndex($file);
-            !$this->outputStatus && $this->errorPageShow(404);
-            $this->accessLog();
+        $this->handleData($data);
+        $tmp = explode(":", $_SERVER['Host'])[0];
+        $this->setEnv($tmp);
+        $query = IS_WIN === true ? mb_convert_encoding($_SERVER['QUERY'], "GBK", "UTF-8") : $_SERVER['QUERY'];
+        $file = $this->getDefaultIndex($query);
+        $flag = $this->explodeQuery();
+        if ($flag) {
+            $this->_rewrite();
         }
+        !$this->outputStatus && $this->analysisLocation($_SERVER['SCRIPT_NAME']);
+        !$this->outputStatus && $this->staticDir($file);
+        !$this->outputStatus && $this->displayCatalogue == 'on' && $this->autoIndex($file);
+        !$this->outputStatus && $this->errorPageShow(404);
+        $this->accessLog();
     }
 
     // 错误页面
@@ -220,8 +277,8 @@ class HttpInterface
         $content = $this->clientBody;
         $server = [
             'GATEWAY_INTERFACE' => 'FastCGI/1.0',
-            'SERVER_SOFTWARE' => 'php/fcgiclient',
-            'SERVER_PROTOCOL' => 'HTTP/1.1',
+            'SERVER_SOFTWARE' => $_SERVER['SERVER_SOFTWARE'],
+            'SERVER_PROTOCOL' => $_SERVER['SERVER_PROTOCOL'],
             'CONTENT_TYPE' => $_SERVER['Content-Type'] ?? '',
             'REQUEST_METHOD' => $_SERVER['REQUEST_METHOD'],
             'DOCUMENT_ROOT' => $this->documentRoot,
@@ -247,11 +304,21 @@ class HttpInterface
             'HTTP_SEC_FETCH_SITE' => $_SERVER['Sec-Fetch-Site'] ?? '',
             'HTTP_ACCEPT' => $_SERVER['Accept'] ?? '',
             'HTTP_USER_AGENT' => $_SERVER['User-Agent'] ?? '',
+            'PATH_INFO' => $_SERVER['PATH_INFO'] ?? '',
+            'ORIG_PATH_INFO' => $_SERVER['ORIG_PATH_INFO'] ?? '',
+            'REQUEST_URI' => $_SERVER['REQUEST_URI'] ?? '',
+            'HTTP_COOKIE' => $_SERVER['Cookie'] ?? '',
+            'REQUEST_TIME' => time(),
+            'HTTP_REFERER' => $_SERVER['Referer'] ?? '',
+            'REQUEST_SCHEME' => $_SERVER['REQUEST_SCHEME'] ?? 'http',
+            'HTTPS' => $_SERVER['HTTPS'] ?? '',
+            'SERVER_PROTOCOL' => $_SERVER['SERVER_PROTOCOL'] ?? '',
         ];
-        $server = array_merge($this->clientHeads, $server);
-        $client->setConnectTimeout(100);
-        $client->setReadWriteTimeout(1000);
-        //$client->setKeepAlive(true);
+        $server = array_filter(array_merge($this->clientHeads, $server));
+        //$client->setKeepAlive(true); // 长连接
+        //$client->setPersistentSocket(true);
+        $client->setConnectTimeout(5000);
+        $client->setReadWriteTimeout(5000);
         $text = $client->request($server, $content);
         if (empty($text)) {
             $this->errorPageShow(502);
@@ -262,9 +329,10 @@ class HttpInterface
         $header_text = $arr[0] ?? [];
         unset($arr[0]);
         $content = implode("\r\n\r\n", $arr);
+        // 错误报告
         if (strstr($header_text, "PHP message:")) {
             $tmp = explode("\n", $header_text);
-            $tmp2 = preg_split("/(Status:|Content-Type:)+/", $tmp[0]);
+            $tmp2 = preg_split("/(Status:|Content-Type:)+/i", $tmp[0]);
             $content = $tmp2[0];
         }
         if (trim($content) == 'File not found.') {
@@ -275,19 +343,24 @@ class HttpInterface
         $headers = explode("\n", $header_text);
         $_headers = [];
         foreach ($headers as $v) {
-            $head2  = explode(":", $v);
+            $head2 = explode(":", $v);
             $v_num = strlen($head2[0] . ":");
-            $v2 = substr($v, $v_num);
-            $_headers[trim($head2[0])] = trim($v2);
+            $v2 = trim(substr($v, $v_num));
+            $k2 = trim($head2[0]);
+            // cookies处理
+            if ($k2 == 'Set-Cookie') {
+                $_headers[] = 'Set-Cookie:' . $v2;
+            } else {
+                $_headers[$k2] = $v2;
+            }
         }
         /** 这里要获取到fpm里面设置的状态码和header头 **/
         $code = isset($_headers['Status']) ? $this->getHttpCode($_headers['Status']) : 200;
-        if (isset($_headers['Content-Length'])) {
-            $_headers['Content-Length'] = strlen($content);
-        }
+        $_headers['Content-Length'] = strlen($content);
         $this->setHeader($code, $_headers);
         $this->send($content);
         $server = [];
+        $content = '';
         $this->clientBody = $client = '';
         $this->outputStatus = true;
     }
@@ -308,13 +381,37 @@ class HttpInterface
         return false;
     }
 
+    // 转化header头
+    public function headerTostr($heads)
+    {
+        $arrs = [];
+        if (is_array($heads) && count($heads) > 0) {
+            foreach ($heads as $k => $v) {
+                if (is_numeric($k)) {
+                    $arrs[] = $v;
+                } else {
+                    $arrs[] = $k . ':' . $v;
+                }
+            }
+        }
+        return $arrs;
+    }
+
     // 解析参数
     public function analysisLocationValue($text)
     {
-        $text = str_replace(";", '', $text);
-        $arr = array_values(array_filter(explode(" ", trim($text))));
+        if (!is_array($text)) {
+            $text = str_replace(";", '', $text);
+            $arr = array_values(array_filter(explode(" ", trim($text))));
+            $key = $arr[0] ?? '';
+            $value = $arr[1] ?? '';
+        } else {
+            $arr = implode("", $text);
+            $arr = array_values(array_filter(explode(" ", $text)));
+        }
         $key = $arr[0] ?? '';
         $value = $arr[1] ?? '';
+        // 判断文件缓存
         if (strtolower($key) == 'expires') {
             $time = Tools::timeConversion($value);
             if ($this->cacheFile($time)) {
@@ -324,6 +421,7 @@ class HttpInterface
             $heads = ['Last-Modified' => $lastTime, 'Cache-Control' => 'max-age=' . $time];
             $this->addHeaders = array_merge($this->addHeaders, $heads);
         }
+        // 判断返回值
         if (strtolower($key) == 'return') {
             if (is_numeric($value)) {
                 $this->errorPageShow($value);
@@ -336,6 +434,7 @@ class HttpInterface
                 return;
             }
         }
+        // 判断php执行脚本
         if (strtolower($key) == 'fastcgi_pass') {
             if (!is_file($_SERVER['SCRIPT_FILENAME'])) {
                 return false;
@@ -385,7 +484,7 @@ class HttpInterface
                     $files[$i]['filename'] = $filename;
                     $files[$i]['uptime'] = filemtime($path);
                     $filename = mb_convert_encoding($filename, "GBK", "UTF-8"); // iconv('utf-8', 'gb2312', $filename);
-                    $len =  strlen($filename);
+                    $len = strlen($filename);
                     $files[$i]['filesize'] = Tools::transfByte(filesize($path));
                     if ($max_len < $len) {
                         $max_len = $len;
@@ -400,10 +499,10 @@ class HttpInterface
         $max_len += 15;
         closedir($handler);
         $html = '<html><head><title>Index of /</title></head><body><h1>Index of ' . $_SERVER['PHP_SELF'] . '</h1><hr><pre><a href="../">../</a>' . PHP_EOL;
-        foreach ($dirs as  $d) {
+        foreach ($dirs as $d) {
             $html .= "<a href=\"./{$d}\">{$d}</a>" . Tools::spaces($d, $max_len) . " -" . PHP_EOL;
         }
-        foreach ($files as  $k => $f) {
+        foreach ($files as $k => $f) {
             $name = $f['filename'];
             $uptime = date("Y-m-d H:i:s", $f['uptime']);
             $filesize = $f['filesize'];
@@ -417,40 +516,39 @@ class HttpInterface
         $html = '';
     }
 
-
     // 关闭
     public function _onClose($fd)
     {
         is_callable($this->onClose) && call_user_func_array($this->onClose, [$fd]);
     }
 
-
     // 解析获取的文件头
     public function _getHeader($code, $header = [])
     {
         $response = '';
-        $len = $header["Content-Length"] ?? '';
-        unset($header["Content-Length"]);
+        //$len = isset($header["Content-Length"]) ?? 0;
+        //unset($header["Content-Length"]);
         if (is_array($header) && count($header) > 0) {
             foreach ($header as $k => $v) {
                 if ($k == 'Content-Type') {
-                    $response .= "{$k}:{$v};charset=UTF-8" . $this->separator;
-                } else {
                     $response .= "{$k}:{$v}" . $this->separator;
+                } else {
+                    $response .= "{$v}" . $this->separator;
                 }
             }
         }
-        $response .= "Content-Length:" . $len . $this->separator;
+        //$response .= "Content-Length:" . $len . $this->separator;
         $response .= $this->separator;
         return $this->protocolHeader . " " . $this->getHttpCodeValue($code) . $this->separator . $response;
     }
 
-
     // 发送状态码
     public function sendCode($code, $headers = [])
     {
+        // 重新设置header头和状态码
         $this->setHeader($code, $headers);
-        $response =  $this->_getHeader($code, $headers);
+        $headers2 = $this->headerTostr($this->headers);
+        $response = $this->_getHeader($this->headerCode, $headers2);
         $response = stripcslashes($response);
         $this->server->send($this->fd, $response);
     }
@@ -467,19 +565,24 @@ class HttpInterface
     // 发送消息
     public function send($data)
     {
+
         // 当前字符串大小
-        $len =  strlen($data);
+        $len = strlen($data);
         // 如果没有指定Content-Length大小就默认为当前传递过来的字符串大小
-        if (!isset($this->headers['Content-Length'])) $this->headers['Content-Length'] = $len;
+        if (!isset($this->headers['Content-Length'])) {
+            $this->headers['Content-Length'] = $len;
+        }
+
         // gzip压缩
-        if (isset($this->headers['Content-Encoding'])  && $this->headers['Content-Encoding'] == 'gzip') {
+        if (isset($this->headers['Content-Encoding']) && $this->headers['Content-Encoding'] == 'gzip') {
             $data = \gzencode($data);
             $this->headers['Content-Length'] = strlen($data);
         }
+
         // 状态码
         $this->headers['Status'] = $this->headerCode;
-        $this->headers = array_merge($this->headers, $this->addHeaders);
-        $response =  $this->_getHeader($this->headerCode, $this->headers);
+        $headers = $this->headerTostr($this->headers);
+        $response = $this->_getHeader($this->headerCode, $headers);
         $response = stripcslashes($response);
         $response .= $data;
         $this->server->send($this->fd, $response);
@@ -489,12 +592,10 @@ class HttpInterface
         $this->bodyLen = 0;
     }
 
-
     // 访问日志
     public function accessLog()
     {
         $log = $_SERVER['REMOTE_ADDR'] . " - - " . date("Y-m-d H:i:s") . " " . $_SERVER['REQUEST_METHOD'] . " " . $_SERVER['QUERY'] . " " . $_SERVER['SERVER_PROTOCOL'] . " \"" . $_SERVER['User-Agent'] . "\"" . PHP_EOL;
-        //echo $log;
         if (!empty($this->accessLogFile) && is_dir(dirname($this->accessLogFile))) {
             file_put_contents($this->accessLogFile, $log, FILE_APPEND);
         }
@@ -526,25 +627,30 @@ class HttpInterface
     public function handleData($data)
     {
         // 来处理head头
-        if (!$this->firstRead && stripos($data, $this->protocolHeader)) {
+        if (stripos($data, $this->protocolHeader)) {
             $buffer = explode("\r\n\r\n", $data);
             $data2 = $buffer[0] ?? '';
             unset($buffer[0]);
-            $this->clientBody = implode("\r\n\r\n", $buffer);
+            if ($this->firstRead == 1) {
+                $this->clientBody .= implode("\r\n\r\n", $buffer);
+            } else {
+                $this->clientBody = implode("\r\n\r\n", $buffer);
+            }
             $header = explode("\r\n", $data2);
             $arr = explode(" ", $header[0]);
-			$method = $arr[0] ?? '';
-			$query = $arr[1] ?? '';
-			$protocolHeader = $arr[2] ?? ''; 
+            $method = $arr[0] ?? '';
+            $query = $arr[1] ?? '';
+            $protocolHeader = $arr[2] ?? '';
             unset($header[0]);
             $head = [];
             // 这里，修复了时间戳的问题,不可只用:号来分割
             foreach ($header as $v) {
-                $head2  = explode(":", $v);
+                $head2 = explode(":", $v);
                 $v_num = strlen($head2[0] . ":");
                 $v2 = substr($v, $v_num);
-                $head[trim($head2[0])] = trim($v2);
-                $this->clientHeads[trim($head2[0])] = trim($v2);
+                $k2 = trim($head2[0]);
+                $head[$k2] = trim($v2);
+                $this->clientHeads[$k2] = trim($v2);
             }
             /** 检查http头中的字段 **/
             if (!isset($head['If-Modified-Since']) && isset($_SERVER['If-Modified-Since'])) {
@@ -558,25 +664,25 @@ class HttpInterface
             $_SERVER['QUERY'] = $_SERVER['REQUEST_URI'] = urldecode($query);
             $head = $head2 = $buffer = '';
             $this->firstRead = 1;
-        } else {
-            $this->clientBody .= $data;
         }
+        // 为空
         if (!isset($_SERVER['Content-Length'])) {
             $this->firstRead = 0;
             return true;
         }
+
         if (strlen($this->clientBody) == $_SERVER['Content-Length']) {
             $this->firstRead = 0;
             return true;
         }
-        return false;
+        return true;
     }
 
     // 获取索引文件路径
     public function getDefaultIndex($query)
     {
         $arr = parse_url($query);
-        $path =  $arr['path'] ?? '';
+        $path = $arr['path'] ?? '';
         $query2 = isset($arr['query']) ? "?" . $arr['query'] : '';
         if (substr($path, -1) == '/') {
             foreach ($this->defaultIndex as $index) {
@@ -604,7 +710,7 @@ class HttpInterface
         // 这里为了加快速度,缓存一下文件大小
         if (isset($this->files[$file]) || is_file($file)) {
             if (empty($this->types)) {
-                $this->types = include(__DIR__ . "/" . 'Type.php');
+                $this->types = include __DIR__ . "/" . 'Type.php';
             }
             $type = $this->types;
             $ext = $this->getExt($file);
@@ -614,6 +720,7 @@ class HttpInterface
                 $fileSize = $this->files[$file];
             } else {
                 $fileSize = filesize($file);
+                $this->files[$file] = $fileSize;
             }
             $handleDocument = new HandleDocument($this, $file, $fileSize, $connectType);
             if ($handleDocument->staticDir()) {
@@ -626,7 +733,6 @@ class HttpInterface
             }
         }
     }
-
 
     // 事件绑定
     public function on($event, $callback)
