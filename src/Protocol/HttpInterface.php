@@ -2,7 +2,7 @@
 /*
  * @Author       : lovefc
  * @Date         : 2022-09-03 02:11:36
- * @LastEditTime : 2022-11-16 17:11:36
+ * @LastEditTime : 2024-07-29 15:21:23
  */
 
 namespace FC\Protocol;
@@ -152,7 +152,6 @@ class HttpInterface
         $_SERVER['REMOTE_PORT'] = $address[1] ?? '';
         //$_SERVER['PATH_INFO'] =  $_SERVER['ORIG_PATH_INFO'] = '';
         $this->explodeQuery();
-
     }
 
     // 解析query
