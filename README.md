@@ -32,13 +32,16 @@ php index.php [-c filename]   [ start | restart | stop ] [ -v ]
 
 这是一个由php-nginx搭建的网站
 
+## 更新记录
+2024/07/29:添加了伪静态Rewrite功能，修复了cookies和session失效问题
+
 
 ## 配置信息(目前已支持的语法)
 ```
 server 
 {
-        # 端口号,支持多个,空格隔开
-        listen  80 1993;
+    # 端口号,支持多个,空格隔开
+    listen  80 1993;
 		
 	# 域名,支持多个,空格隔开
         server_name 127.0.0.1;
@@ -102,11 +105,14 @@ server
 	{
             return http://lovefc.cn;
 	}	
+	
+	# 伪静态配置,目前支持的较为简单, 最好固定为这个,能满足基本的要求
+	rewrite ^(.*)$ /index.php/$args;		
 		
 	# 配置php-fpm监听地址，也可以链接远程的fpm监听地址,或者使用"/run/php/php7.4-fpm.sock"
-        location ~ \.php(.*)$ {
-            fastcgi_pass 127.0.0.1:9000;
-        }          		
+    location ~ \.php(.*)$ {
+        fastcgi_pass 127.0.0.1:9000;
+    }          		
 }
 ```
 
@@ -117,7 +123,6 @@ server
 ## 注意事项
 
 * 没有使用epoll模型,不支持很大的并发,请勿在正式环境使用(以后我在考虑上不上,因为要用时间肝)
-* 暂时还没有做Pathinfo和伪静态Rewrite,正在尝试制作,以好让它真的运行起现在的程序
 * 在win下启动,会默认启动cgi,要停止必须使用`php index.php stop`来进行停止
 * win下如果启动了php-cgi,如果你有wsl环境并且启动了php-fpm,那么会冲突,导致php执行出错
 * 启动并没有限制,如果你启动了两次,那么恭喜你,现在又多了(conf*1)个进程
