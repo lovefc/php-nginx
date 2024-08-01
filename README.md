@@ -51,74 +51,74 @@ server
         #端口号
         listen 80;
 		
-		# 域名
+        #域名
         server_name 127.0.0.1;
 		
-		# 错误跳转
+        #错误跳转
         error_page 404 $path/html/404.html;
 		
-		# 502跳转
-		error_page 502 $path/html/50x.html;
-		
+	#502跳转
+	error_page 502 $path/html/50x.html;
+
         #error_page 502 https://www.baidu.com/;
 		
-		#SSL证书
-		#这里crt或者pem都行
+	#SSL证书
+	#这里crt或者pem都行
         #ssl_certificate  $path/conf/ssl/server.crt;
         #ssl_certificate_key  $path/conf/ssl/server.key;
 		
-		# 主目录
-		root   "$path/html";
+	#主目录
+	root   "$path/html";
 		
-		# 默认索引文件
-		index  index.php index.html index.htm;
+	#默认索引文件
+	index  index.php index.html index.htm;
 		
-		#是否启动gzip压缩,on代表启动,off代表开启
-		gzip  on;
+	#是否启动gzip压缩,on代表启动,off代表开启
+	gzip  on;
 		
-		#需要压缩的常见静态资源
-		gzip_types text/plain application/javascript application/x-javascript text/css application/xml text/javascript application/x-httpd-php image/jpeg image/png;
+	#需要压缩的常见静态资源
+	gzip_types text/plain application/javascript application/x-javascript text/css application/xml text/javascript application/x-httpd-php image/jpeg image/png;
 		
-		#压缩的等级,数字选择范围是1-9,数字越小压缩的速度越快,消耗cpu就越大
-		gzip_comp_level 9;
+	#压缩的等级,数字选择范围是1-9,数字越小压缩的速度越快,消耗cpu就越大
+	gzip_comp_level 9;
 		
-		#开启目录浏览功能
+	#开启目录浏览功能
         autoindex on;
         
-		# 添加header头
+	# 添加header头
         #add_header 'Access-Control-Allow-Origin' '*';
         #add_header 'Access-Control-Allow-Credentials' 'true';  
         #add_header 'Access-Control-Allow-Methods' 'GET,POST,PUT,DELETE,PATCH,OPTIONS';  
         #add_header 'Access-Control-Allow-Headers' 'DNT, X-Mx-ReqToken, Keep-Alive, User-Agent, X-Requested-With, If-Modified-Since, Cache-Control, Content-Type, Authorization, token';
 		
-		#访问日志
-		access_log  $path/logs/access.log;
+	#访问日志
+	access_log  $path/logs/access.log;
 		
-		#错误日志
+	#错误日志
         error_log  $path/logs/error.log;
 		
-		#js和css文件缓存,可以指定要缓存的后缀文件
-		#缓存数可以用 数字+英文表示
-		#expires 30s;缓存30秒 
+	#js和css文件缓存,可以指定要缓存的后缀文件
+	#缓存数可以用 数字+英文表示
+	#expires 30s;缓存30秒 
         #expires 30m;缓存30分钟   
         #expires 30h;缓存30小时
         #expires 30d;缓存30天
         #纯数字只代表秒数		
         location ~*\.(js|css)$
-		{
+        {
             expires 100;
         }	
 		
-		#禁止访问这些文件，return 状态码或者一个网址
+	#禁止访问这些文件，return 状态码或者一个网址
         location ~(\.user.ini|\.htaccess|\.git|\.svn|\.project|LICENSE|README.md)
-		{
+        {
             return http://lovefc.cn;
-		}	
+	}	
 		
-		# 伪静态配置,目前支持的较为简单, 最好固定为这个,能满足基本的要求
-		#rewrite ^(.*)$ /index.php?$args;
+	#伪静态配置,目前支持的较为简单, 最好固定为这个,能满足基本的要求
+	#rewrite ^(.*)$ /index.php?$args;
 		
-		# 配置php-fpm监听地址，也可以链接远程的fpm监听地址,或者使用"/run/php/php7.4-fpm.sock"
+	# 配置php-fpm监听地址，也可以链接远程的fpm监听地址,或者使用"/run/php/php7.4-fpm.sock"
         location ~ \.php(.*)$ {
             fastcgi_pass 127.0.0.1:9000;
         }
